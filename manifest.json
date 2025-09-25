@@ -1,0 +1,48 @@
+{
+    "manifest_version": 2,
+    "name": "Borderlands SHIFT Code Manager",
+    "version": "1.0",
+    "description": "Fetch and redeem SHIFT codes for Borderlands games automatically.",
+    "permissions": [
+      "storage",
+      "activeTab",
+      "tabs",
+      "alarms",
+      "notifications",
+      "https://shift.gearboxsoftware.com/*",
+      "https://mentalmars.com/*",
+      "https://www.rockpapershotgun.com/*",
+      "https://www.polygon.com/*"
+    ],
+    "optional_permissions": [
+      "<all_urls>"
+    ],
+    "content_scripts": [
+        {
+            "matches": ["https://shift.gearboxsoftware.com/*"],
+            "js": ["shift-handler.js"]
+        }
+    ],
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "shift-code-manager@example.com"
+      }
+    },
+    "background": {
+      "scripts": ["background.js"],
+      "persistent": true
+    },
+    "browser_action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "16": "assets/icon-16.png",
+        "48": "assets/icon-48.png",
+        "128": "assets/icon-128.png"
+      }
+    },
+    "icons": {
+      "16": "assets/icon-16.png",
+      "48": "assets/icon-48.png",
+      "128": "assets/icon-128.png"
+    }
+  }
