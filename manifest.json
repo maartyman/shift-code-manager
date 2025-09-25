@@ -9,13 +9,8 @@
       "tabs",
       "alarms",
       "notifications",
-      "https://shift.gearboxsoftware.com/*",
-      "https://mentalmars.com/*",
-      "https://www.rockpapershotgun.com/*",
-      "https://www.polygon.com/*"
-    ],
-    "optional_permissions": [
-      "<all_urls>"
+      "http://*/",
+      "https://*/"
     ],
     "content_scripts": [
         {

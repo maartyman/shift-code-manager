@@ -107,8 +107,7 @@ shift-code-manager/
 - `alarms` - Schedule automatic code checking
 - `notifications` - Alert users about new codes
 - `https://shift.gearboxsoftware.com/*` - Automate redemption on the SHIFT portal
-- `https://mentalmars.com/*`, `https://www.rockpapershotgun.com/*`, `https://www.polygon.com/*` - Fetch known SHIFT code sources
-- `Optional site access` - Prompted on demand when you add a custom code source URL
+- `http://*/`, `https://*/` - Allow fetching SHIFT codes from any site you configure
 
 ## 🐛 Troubleshooting
 

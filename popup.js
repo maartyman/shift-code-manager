@@ -23,22 +23,6 @@ const notifyBorderlands2 = document.getElementById("notifyBorderlands2");
 const notifyBorderlandsPS = document.getElementById("notifyBorderlandsPS");
 const notifyTTWonderlands = document.getElementById("notifyTTWonderlands");
 
-async function ensureOriginPermission(url) {
-    if (!browser.permissions) {
-        throw new Error('Permissions API unavailable');
-    }
-
-    const originPattern = `${new URL(url).origin}/*`;
-    const permission = { origins: [originPattern] };
-
-    const alreadyHasAccess = await browser.permissions.contains(permission);
-    if (alreadyHasAccess) {
-        return true;
-    }
-
-    return browser.permissions.request(permission);
-}
-
 // Redemption state tracking
 let isRedeeming = false;
 let shouldStopRedemption = false;
@@ -411,18 +395,6 @@ settingsAddUrlButton.addEventListener('click', async () => {
     }
     
     const game = gameSelect.value;
-
-    try {
-        const permissionGranted = await ensureOriginPermission(newUrl);
-        if (!permissionGranted) {
-            statusElement.textContent = "Site access denied. URL not added";
-            return;
-        }
-    } catch (error) {
-        console.error('Error ensuring permission for URL:', error);
-        statusElement.textContent = "Unable to request permission for this URL";
-        return;
-    }
 
     const result = await browser.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
