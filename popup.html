@@ -310,7 +310,12 @@
     .toggle-switch.active .toggle-slider {
       transform: translateX(26px);
     }
-    
+
+    .helper-text {
+      font-size: 12px;
+      color: #666;
+    }
+
     /* Improved notification games grid */
     .notification-games-grid {
       display: grid;
@@ -371,6 +376,137 @@
     
     .help-button:active {
       transform: translateY(0) scale(0.95);
+    }
+
+    /* Dark mode overrides */
+    body.dark-mode {
+      background-color: #121212;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode h1 {
+      color: #4ecbff;
+      border-color: #299fe3;
+    }
+
+    body.dark-mode .tabs {
+      border-color: #2d2d2d;
+    }
+
+    body.dark-mode .tab {
+      background-color: #2d2d2d;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .tab.active {
+      background-color: #007cba;
+      color: #fff;
+    }
+
+    body.dark-mode .tab:not(.active):hover {
+      background-color: #3a3a3a;
+    }
+
+    body.dark-mode .section {
+      background-color: #1c1c1c;
+      border-color: #2f2f2f;
+    }
+
+    body.dark-mode .section h3 {
+      color: #f1f3f5;
+    }
+
+    body.dark-mode select,
+    body.dark-mode input {
+      background-color: #242424;
+      border-color: #3a3a3a;
+      color: #f1f1f1;
+    }
+
+    body.dark-mode select:focus,
+    body.dark-mode input:focus {
+      outline-color: #299fe3;
+      border-color: #299fe3;
+    }
+
+    body.dark-mode select option {
+      background-color: #242424;
+      color: #f1f1f1;
+    }
+
+    body.dark-mode .helper-text {
+      color: #adb5bd;
+    }
+
+    body.dark-mode .toggle-switch {
+      background-color: #3a3a3a;
+    }
+
+    body.dark-mode .url-item {
+      background-color: #262626;
+    }
+
+    body.dark-mode #status {
+      background-color: #1e2832;
+      border: 1px solid #2c3b47;
+    }
+
+    body.dark-mode .code-overview {
+      background-color: #1c2730;
+      border-color: #2c3b47;
+    }
+
+    body.dark-mode .overview-row {
+      border-color: #2c3b47;
+    }
+
+    body.dark-mode .overview-label {
+      color: #c9d1d9;
+    }
+
+    body.dark-mode .overview-count {
+      background-color: transparent;
+      color: #5fceff;
+      border-color: #299fe3;
+    }
+
+    body.dark-mode .notification-games-grid {
+      background-color: #1c2730;
+      border-color: #2c3b47;
+    }
+
+    body.dark-mode .notification-games-grid label {
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .notification-games-grid label:hover {
+      background-color: #26313b;
+    }
+
+    body.dark-mode .backup-section {
+      background-color: #1c2730;
+      border-color: #2c3b47;
+    }
+
+    body.dark-mode .backup-status.success {
+      background-color: rgba(40, 167, 69, 0.15);
+      color: #7ef5a7;
+      border-color: rgba(40, 167, 69, 0.4);
+    }
+
+    body.dark-mode .backup-status.error {
+      background-color: rgba(220, 53, 69, 0.15);
+      color: #ffb4bc;
+      border-color: rgba(220, 53, 69, 0.4);
+    }
+
+    body.dark-mode button {
+      color: #fff;
+      box-shadow: none;
+    }
+
+    body.dark-mode a {
+      color: #5fceff;
     }
   </style>
 </head>
@@ -477,6 +613,18 @@
       </div>
       <button id="saveTimingSettings">Save Timing Settings</button>
       <div id="settingsStatus" style="margin-top: 10px; font-size: 12px; color: green;"></div>
+    </div>
+
+    <div class="section">
+      <div class="toggle-container">
+        <span class="toggle-label">Dark Mode</span>
+        <div id="darkModeToggle" class="toggle-switch">
+          <div class="toggle-slider"></div>
+        </div>
+      </div>
+      <div class="helper-text">
+        Applies a dark theme to this popup and the help page.
+      </div>
     </div>
     
     <div class="section">

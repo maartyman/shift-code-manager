@@ -9,6 +9,7 @@ const settingsAddUrlButton = document.getElementById("settingsAddUrlButton");
 const settingsGameName = document.getElementById("settingsGameName");
 const codeDelayInput = document.getElementById("codeDelay");
 const retryDelayInput = document.getElementById("retryDelay");
+const darkModeToggle = document.getElementById("darkModeToggle");
 
 // Notification settings elements
 const notificationToggle = document.getElementById("notificationToggle");
@@ -113,6 +114,7 @@ async function updateSettingsTab() {
     await loadSettingsUrls(game);
     await loadTimingSettings();
     await loadNotificationSettings();
+    await loadAppearanceSettings();
 }
 
 // Update code overview in main tab
@@ -268,6 +270,27 @@ async function loadNotificationSettings() {
     checkPeriodSection.style.display = isEnabled ? 'block' : 'none';
 }
 
+function applyDarkModeClass(isEnabled) {
+    if (isEnabled) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+async function loadAppearanceSettings() {
+    try {
+        const result = await browser.storage.local.get(['appearanceSettings']);
+        const settings = result.appearanceSettings || { darkMode: false };
+        applyDarkModeClass(settings.darkMode);
+        if (darkModeToggle) {
+            darkModeToggle.classList.toggle('active', settings.darkMode);
+        }
+    } catch (error) {
+        console.error('Error loading appearance settings:', error);
+    }
+}
+
 // Save notification settings
 // **Save Notification Settings**
 document.getElementById("saveNotificationSettings").addEventListener("click", async () => {
@@ -327,6 +350,19 @@ notificationToggle.addEventListener('click', () => {
         checkPeriodSection.style.display = 'block';
     }
 });
+
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', async () => {
+        const willEnable = !darkModeToggle.classList.contains('active');
+        darkModeToggle.classList.toggle('active', willEnable);
+        applyDarkModeClass(willEnable);
+        try {
+            await browser.storage.local.set({ appearanceSettings: { darkMode: willEnable } });
+        } catch (error) {
+            console.error('Error saving appearance settings:', error);
+        }
+    });
+}
 
 // Load URLs for settings tab
 async function loadSettingsUrls(game) {
@@ -636,6 +672,8 @@ async function loadSettings() {
     
     // Update code overview
     await updateCodeOverview();
+
+    await loadAppearanceSettings();
 }
 
 // Load URLs for a specific game (for main tab reference only)

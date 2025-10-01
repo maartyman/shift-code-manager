@@ -181,13 +181,13 @@
       padding: 12px;
       margin: 15px 0;
     }
-    
+
     .troubleshoot-title {
       font-weight: bold;
       color: #721c24;
       margin-bottom: 5px;
     }
-    
+
     /* Responsive design */
     @media (max-width: 768px) {
       body {
@@ -203,7 +203,7 @@
         box-shadow: none;
       }
     }
-    
+
     @media (max-width: 480px) {
       .container {
         padding: 15px;
@@ -216,6 +216,95 @@
       h2 {
         font-size: 16px;
       }
+    }
+
+    /* Dark mode overrides */
+    body.dark-mode {
+      background-color: #121212;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .container {
+      background-color: #1c1c1c;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    body.dark-mode .header {
+      border-color: #299fe3;
+    }
+
+    body.dark-mode h1 {
+      color: #4ecbff;
+    }
+
+    body.dark-mode .subtitle {
+      color: #b0b0b0;
+    }
+
+    body.dark-mode h2 {
+      color: #4ecbff;
+      border-color: #299fe3;
+    }
+
+    body.dark-mode h3 {
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .step {
+      background-color: #1f2933;
+      border-color: #2c3b47;
+    }
+
+    body.dark-mode .platform-item {
+      background-color: #1f2933;
+      border-color: #2c3b47;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .step-number {
+      background-color: #299fe3;
+      color: #0b1720;
+    }
+
+    body.dark-mode .warning {
+      background-color: rgba(255, 193, 7, 0.18);
+      border-color: rgba(255, 193, 7, 0.38);
+    }
+
+    body.dark-mode .warning-title {
+      color: #ffd369;
+    }
+
+    body.dark-mode .info {
+      background-color: rgba(13, 110, 253, 0.12);
+      border-color: rgba(13, 110, 253, 0.35);
+    }
+
+    body.dark-mode .info-title {
+      color: #9ad5ff;
+    }
+
+    body.dark-mode .troubleshoot {
+      background-color: rgba(220, 53, 69, 0.15);
+      border-color: rgba(220, 53, 69, 0.4);
+    }
+
+    body.dark-mode .troubleshoot-title {
+      color: #ffb5bc;
+    }
+
+    body.dark-mode .back-button {
+      background-color: #299fe3;
+      color: #071016;
+    }
+
+    body.dark-mode code {
+      background-color: #1f2933;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode a {
+      color: #5fceff;
     }
   </style>
 </head>
@@ -390,5 +479,58 @@
     This extension is designed to make SHIFT code redemption as easy as possible. With automatic fetching, intelligent notifications, and multi-platform support, you'll never miss another golden key or cosmetic reward!
   </div>
   </div>
+
+  <script>
+    (function() {
+      function getExtensionApi() {
+        if (typeof browser !== 'undefined' && browser.storage && browser.storage.local) {
+          return browser;
+        }
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          return chrome;
+        }
+        return null;
+      }
+
+      function applyDarkMode(isEnabled) {
+        document.body.classList.toggle('dark-mode', Boolean(isEnabled));
+      }
+
+      const api = getExtensionApi();
+      if (!api) {
+        return;
+      }
+
+      const handleSettings = (result) => {
+        try {
+          const settings = result && result.appearanceSettings ? result.appearanceSettings : { darkMode: false };
+          applyDarkMode(settings.darkMode);
+        } catch (error) {
+          console.error('Failed to apply appearance settings:', error);
+        }
+      };
+
+      try {
+        const maybePromise = api.storage.local.get(['appearanceSettings']);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then(handleSettings).catch((error) => {
+            console.error('Error loading appearance settings:', error);
+          });
+        } else {
+          api.storage.local.get(['appearanceSettings'], handleSettings);
+        }
+      } catch (error) {
+        api.storage.local.get(['appearanceSettings'], handleSettings);
+      }
+
+      if (api.storage && api.storage.onChanged && api.storage.onChanged.addListener) {
+        api.storage.onChanged.addListener((changes, areaName) => {
+          if (areaName === 'local' && changes.appearanceSettings) {
+            applyDarkMode(changes.appearanceSettings.newValue && changes.appearanceSettings.newValue.darkMode);
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
