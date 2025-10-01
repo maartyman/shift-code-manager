@@ -2,6 +2,8 @@
 
 A comprehensive browser extension that automatically fetches and redeems SHIFT codes for Borderlands games across multiple platforms with intelligent notifications.
 
+The SHIFT Code Manager extension makes redeeming Borderlands SHIFT codes quick and effortless. It automatically fetches the latest codes from trusted sources, notifies you when new ones are available, and redeems them on the official SHIFT website (shift.gearboxsoftware.com) with just a click. Supporting multiple platforms—including Steam, Xbox, PlayStation, Nintendo, Epic, and Stadia—the extension handles everything from tracking code states (new, redeemed, expired, or invalid) to managing redemption delays to avoid rate limits. With built-in settings, notifications, and backup options, it ensures you never miss out on golden keys or rewards again.
+
 ## ✨ Features
 
 ### 🎯 Game Support
@@ -23,7 +25,7 @@ A comprehensive browser extension that automatically fetches and redeems SHIFT c
 ## 🚀 Installation
 
 ### From Browser Store (Recommended)
-*Coming soon - under review*
+- [Firefox Add-ons – Borderlands SHIFT Code Manager](https://addons.mozilla.org/en-US/firefox/addon/borderlands-shift-code-manager/)
 
 ### Manual Installation (Developer Mode)
 1. Download clone this repository
