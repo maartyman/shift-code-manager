@@ -8,7 +8,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  test-server  - Start the Python test server for development testing"
-	@echo "  build        - Create production zip file for browser extension upload"
+	@echo "  build        - Create a test build or release package"
 	@echo "  clean        - Clean up generated files and directories"
 	@echo "  help         - Show this help message"
 
@@ -21,21 +21,9 @@ test-server:
 	fi
 	@cd test && python3 test-server.py
 
-# Build production zip for browser extension upload
+# Build artifacts via interactive prompt
 build:
-	@echo "Building production extension package..."
-	@mkdir -p dist
-	@zip -r dist/shift-code-manager-production.zip \
-		manifest.json \
-		popup.html \
-		help.html \
-		popup.js \
-		background.js \
-		shift-handler.js \
-		assets/ \
-		LICENSE \
-		PRIVACY.md
-	@echo "✅ Production package created: dist/shift-code-manager-production.zip"
+	@python3 scripts/release.py
 
 # Clean up generated files
 clean:

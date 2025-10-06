@@ -53,19 +53,20 @@ make test-server
 # Provides random valid-format SHIFT codes for testing
 ```
 
-### Building for Production
+### Releasing a New Version
 ```bash
-# Create production build
+# Create a release
 make build
 
-# Output: dist/shift-code-manager-production.zip
-# Ready for upload to browser stores
+# Version is bumped in manifest.json
+# Changelog is regenerated automatically
+# Output: dist/shift-code-manager-<version>.zip
 ```
 
 ### Available Make Targets
 - `make help` - Show all available commands
 - `make test-server` - Start development test server  
-- `make build` - Create production package
+- `make build` - Create release: bump version, refresh changelog, package zip
 - `make clean` - Remove generated files
 
 ## 📁 Project Structure

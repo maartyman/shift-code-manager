@@ -4,40 +4,46 @@
     "version": "1.1",
     "description": "Fetch and redeem SHIFT codes for Borderlands games automatically.",
     "permissions": [
-      "storage",
-      "activeTab",
-      "tabs",
-      "alarms",
-      "notifications",
-      "http://*/",
-      "https://*/"
+        "storage",
+        "activeTab",
+        "tabs",
+        "alarms",
+        "notifications",
+        "http://*/",
+        "https://*/"
     ],
     "content_scripts": [
         {
-            "matches": ["https://shift.gearboxsoftware.com/*"],
-            "js": ["shift-handler.js"]
+            "matches": [
+                "https://shift.gearboxsoftware.com/*"
+            ],
+            "js": [
+                "shift-handler.js"
+            ]
         }
     ],
     "browser_specific_settings": {
-      "gecko": {
-        "id": "{34b823c2-a6a7-447b-bce8-f4f610b1e440}"
-      }
+        "gecko": {
+            "id": "{34b823c2-a6a7-447b-bce8-f4f610b1e440}"
+        }
     },
     "background": {
-      "scripts": ["background.js"],
-      "persistent": true
+        "scripts": [
+            "background.js"
+        ],
+        "persistent": true
     },
     "browser_action": {
-      "default_popup": "popup.html",
-      "default_icon": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "assets/icon-16.png",
+            "48": "assets/icon-48.png",
+            "128": "assets/icon-128.png"
+        }
+    },
+    "icons": {
         "16": "assets/icon-16.png",
         "48": "assets/icon-48.png",
         "128": "assets/icon-128.png"
-      }
-    },
-    "icons": {
-      "16": "assets/icon-16.png",
-      "48": "assets/icon-48.png",
-      "128": "assets/icon-128.png"
     }
-  }
+}
