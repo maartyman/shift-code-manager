@@ -53,6 +53,14 @@ make test-server
 # Provides random valid-format SHIFT codes for testing
 ```
 
+#### Automated DOM Tests
+Replay saved SHIFT portal states to exercise `shift-handler.js` without hitting the live site:
+
+```bash
+npm install
+npm test
+```
+
 ### Releasing a New Version
 ```bash
 # Create a release

@@ -91,6 +91,10 @@ browser.runtime.onMessage.addListener(async (message) => {
             
             inputField.value = code;
 
+            // Capture initial state to detect changes
+            const resultsNode = document.getElementById("code_results");
+            const initialResultHtml = resultsNode ? resultsNode.innerHTML.trim() : "";
+
             // Step 2: Press check
             const checkButton = document.getElementById("shift_code_check");
             if (!checkButton) {
@@ -105,12 +109,31 @@ browser.runtime.onMessage.addListener(async (message) => {
                 const checkForResult = () => {
                     attempts++;
                     if (attempts > 30) {
-                        reject({ error: "Check took too long", state: "error" });
+                        // If we timed out but have a result, return it (handles case where result didn't change but is valid)
+                        const finalResults = document.getElementById("code_results");
+                        if (finalResults && finalResults.innerHTML.trim()) {
+                             const finalText = finalResults.innerHTML.toLowerCase();
+                             if (finalText.includes("expired")) resolve({ state: "expired" });
+                             else if (finalText.includes("already been redeemed")) resolve({ state: "checked" });
+                             else if (finalText.includes("invalid") || finalText.includes("not valid")) resolve({ state: "invalid" });
+                             else if (finalResults.querySelectorAll("h2").length > 0) resolve({ state: "can_redeem" });
+                             else reject({ error: "Check took too long", state: "error" });
+                        } else {
+                            reject({ error: "Check took too long", state: "error" });
+                        }
                         return;
                     }
                     
                     const results = document.getElementById("code_results");
-                    if (!results || !results.innerHTML.trim()) {
+                    const currentHtml = results ? results.innerHTML.trim() : "";
+
+                    if (!results || !currentHtml) {
+                        setTimeout(checkForResult, 1000);
+                        return;
+                    }
+
+                    // If content hasn't changed from initial state, keep waiting
+                    if (initialResultHtml && currentHtml === initialResultHtml) {
                         setTimeout(checkForResult, 1000);
                         return;
                     }
@@ -169,17 +192,28 @@ browser.runtime.onMessage.addListener(async (message) => {
                 // Look for platform button in siblings after the game element
                 let currentElement = gameElement.nextElementSibling;
                 while (currentElement && !platformButton) {
-                    const elementText = currentElement.innerHTML?.toLowerCase() || '';
+                    // Find all potential buttons in this container
+                    const buttons = currentElement.querySelectorAll('.redeem_button, input[type="submit"]');
                     
-                    // Check if this element contains the platform name
-                    const platformMatches = platformSearchTerms.some(term => 
-                        elementText.includes(term.toLowerCase())
-                    );
-                    
-                    if (platformMatches) {
-                        platformButton = currentElement.querySelector('.redeem_button, input[type="submit"]');
-                        break;
+                    for (const btn of buttons) {
+                        const form = btn.closest('form');
+                        const dataPlatform = form ? form.getAttribute('data-platform') : null;
+                        const btnValue = btn.value || '';
+                        
+                        // Check data-platform
+                        if (dataPlatform && platformSearchTerms.some(term => dataPlatform.toLowerCase().includes(term.toLowerCase()))) {
+                            platformButton = btn;
+                            break;
+                        }
+                        
+                        // Check button value
+                        if (platformSearchTerms.some(term => btnValue.toLowerCase().includes(term.toLowerCase()))) {
+                            platformButton = btn;
+                            break;
+                        }
                     }
+                    
+                    if (platformButton) break;
                     currentElement = currentElement.nextElementSibling;
                 }
 
