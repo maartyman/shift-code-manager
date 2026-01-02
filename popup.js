@@ -188,33 +188,39 @@ async function loadTimingSettings() {
 
 // Save timing settings
 document.getElementById("saveTimingSettings").addEventListener("click", async () => {
-    const codeDelay = parseInt(codeDelayInput.value) || 5;
-    const retryDelay = parseInt(retryDelayInput.value) || 15;
-    
-    // Validate settings
-    if (codeDelay < 1 || codeDelay > 60) {
-        document.getElementById("settingsStatus").textContent = "Code delay must be between 1 and 60 seconds";
+    try {
+        const codeDelay = parseInt(codeDelayInput.value) || 5;
+        const retryDelay = parseInt(retryDelayInput.value) || 15;
+        
+        // Validate settings
+        if (codeDelay < 1 || codeDelay > 60) {
+            document.getElementById("settingsStatus").textContent = "Code delay must be between 1 and 60 seconds";
+            document.getElementById("settingsStatus").style.color = "red";
+            return;
+        }
+        if (retryDelay < 5 || retryDelay > 120) {
+            document.getElementById("settingsStatus").textContent = "Retry delay must be between 5 and 120 seconds";
+            document.getElementById("settingsStatus").style.color = "red";
+            return;
+        }
+        
+        const settings = {
+            codeDelay: codeDelay,
+            retryDelay: retryDelay
+        };
+        
+        await browser.storage.local.set({ timingSettings: settings });
+        
+        document.getElementById("settingsStatus").textContent = "Timing settings saved successfully!";
+        document.getElementById("settingsStatus").style.color = "green";
+        setTimeout(() => {
+            document.getElementById("settingsStatus").textContent = "";
+        }, 3000);
+    } catch (error) {
+        console.error("Failed to save timing settings:", error);
+        document.getElementById("settingsStatus").textContent = "Failed to save settings!";
         document.getElementById("settingsStatus").style.color = "red";
-        return;
     }
-    if (retryDelay < 5 || retryDelay > 120) {
-        document.getElementById("settingsStatus").textContent = "Retry delay must be between 5 and 120 seconds";
-        document.getElementById("settingsStatus").style.color = "red";
-        return;
-    }
-    
-    const settings = {
-        codeDelay: codeDelay,
-        retryDelay: retryDelay
-    };
-    
-    await browser.storage.local.set({ timingSettings: settings });
-    
-    document.getElementById("settingsStatus").textContent = "Timing settings saved successfully!";
-    document.getElementById("settingsStatus").style.color = "green";
-    setTimeout(() => {
-        document.getElementById("settingsStatus").textContent = "";
-    }, 3000);
 });
 
 // Load notification settings
@@ -294,46 +300,52 @@ async function loadAppearanceSettings() {
 // Save notification settings
 // **Save Notification Settings**
 document.getElementById("saveNotificationSettings").addEventListener("click", async () => {
-    // Calculate total minutes from period inputs
-    const days = parseInt(periodDays.value) || 0;
-    const hours = parseInt(periodHours.value) || 0;
-    const minutes = parseInt(periodMinutes.value) || 0;
-    
-    // Calculate total minutes (with minimum of 1 minute)
-    const totalMinutes = Math.max(1, (days * 24 * 60) + (hours * 60) + minutes);
-    
-    const settings = {
-        enabled: notificationToggle.classList.contains('active'),
-        intervalMinutes: totalMinutes,
-        period: {
-            days: days,
-            hours: hours,
-            minutes: minutes
-        },
-        games: {
-            borderlands4: notifyBorderlands4.checked,
-            borderlands3: notifyBorderlands3.checked,
-            borderlands2: notifyBorderlands2.checked,
-            borderlandsps: notifyBorderlandsPS.checked,
-            ttwonderlands: notifyTTWonderlands.checked
+    try {
+        // Calculate total minutes from period inputs
+        const days = parseInt(periodDays.value) || 0;
+        const hours = parseInt(periodHours.value) || 0;
+        const minutes = parseInt(periodMinutes.value) || 0;
+        
+        // Calculate total minutes (with minimum of 1 minute)
+        const totalMinutes = Math.max(1, (days * 24 * 60) + (hours * 60) + minutes);
+        
+        const settings = {
+            enabled: notificationToggle.classList.contains('active'),
+            intervalMinutes: totalMinutes,
+            period: {
+                days: days,
+                hours: hours,
+                minutes: minutes
+            },
+            games: {
+                borderlands4: notifyBorderlands4.checked,
+                borderlands3: notifyBorderlands3.checked,
+                borderlands2: notifyBorderlands2.checked,
+                borderlandsps: notifyBorderlandsPS.checked,
+                ttwonderlands: notifyTTWonderlands.checked
+            }
+        };
+        
+        await browser.storage.local.set({ notificationSettings: settings });
+        
+        // Send message to background script to update alarm
+        if (typeof browser !== 'undefined' && browser.runtime) {
+            browser.runtime.sendMessage({
+                action: 'updateNotificationSettings',
+                settings: settings
+            });
         }
-    };
-    
-    await browser.storage.local.set({ notificationSettings: settings });
-    
-    // Send message to background script to update alarm
-    if (typeof browser !== 'undefined' && browser.runtime) {
-        browser.runtime.sendMessage({
-            action: 'updateNotificationSettings',
-            settings: settings
-        });
+        
+        document.getElementById("notificationStatus").textContent = "Notification settings saved successfully!";
+        document.getElementById("notificationStatus").style.color = "green";
+        setTimeout(() => {
+            document.getElementById("notificationStatus").textContent = "";
+        }, 3000);
+    } catch (error) {
+        console.error("Failed to save notification settings:", error);
+        document.getElementById("notificationStatus").textContent = "Failed to save settings!";
+        document.getElementById("notificationStatus").style.color = "red";
     }
-    
-    document.getElementById("notificationStatus").textContent = "Notification settings saved successfully!";
-    document.getElementById("notificationStatus").style.color = "green";
-    setTimeout(() => {
-        document.getElementById("notificationStatus").textContent = "";
-    }, 3000);
 });
 
 // Toggle switch functionality
@@ -661,15 +673,25 @@ const defaultUrls = {
 
 // Load settings from storage
 async function loadSettings() {
-    const result = await browser.storage.local.get(['selectedGame', 'customUrls', 'gameNewCodes']);
+    const result = await browser.storage.local.get(['selectedGame', 'selectedPlatform', 'customUrls', 'gameNewCodes']);
     
     // Set selected game
     const selectedGame = result.selectedGame || 'borderlands4';
     gameSelect.value = selectedGame;
+
+    // Set selected platform
+    const selectedPlatform = result.selectedPlatform || 'steam';
+    if (platformSelect) {
+        platformSelect.value = selectedPlatform;
+    }
     
     // Load URLs for the selected game
     await loadUrlsForGame(selectedGame);
     
+    // Load other settings
+    await loadTimingSettings();
+    await loadNotificationSettings();
+
     // Update code overview
     await updateCodeOverview();
 
@@ -706,6 +728,9 @@ gameSelect.addEventListener('change', async () => {
 
 // Handle platform selection change
 platformSelect.addEventListener('change', async () => {
+    const selectedPlatform = platformSelect.value;
+    await browser.storage.local.set({ selectedPlatform });
+    
     // Update code overview for new platform
     await updateCodeOverview();
 });
