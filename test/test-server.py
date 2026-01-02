@@ -13,8 +13,17 @@ import string
 from datetime import datetime
 
 PORT = 8000
+USE_FIXED_CODES = True
+
+codes = [
+    "JZRTJ-SR9BB-W6T35-BJBTT-36FZR",
+    "BZRB3-W65HT-CFJBC-B3JT3-K36XR",
+    "T9F33-TXW9J-5RTT5-3JTJJ-RR6R6",
+    "TZFT3-K9Z33-5FT3W-BJ33T-WZ5X5"
+]
 
 def generate_shift_code():
+
     """Generate a random SHiFT code in the format XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"""
     def random_segment():
         # SHiFT codes use uppercase letters and numbers, but exclude some characters
@@ -26,9 +35,13 @@ def generate_shift_code():
 
 def generate_test_html():
     """Generate HTML with random SHiFT codes"""
-    # Generate 3-5 random codes each time
-    num_codes = random.randint(3, 5)
-    active_codes = [generate_shift_code() for _ in range(num_codes)]
+    
+    if USE_FIXED_CODES:
+        active_codes = codes
+    else:
+        # Generate 3-5 random codes each time
+        num_codes = random.randint(3, 5)
+        active_codes = [generate_shift_code() for _ in range(num_codes)]
     
     # Generate 1-2 expired codes
     expired_codes = [generate_shift_code() for _ in range(random.randint(1, 2))]
