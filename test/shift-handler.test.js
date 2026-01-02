@@ -499,5 +499,25 @@ describe('shift-handler message listener', () => {
       // If fixed (by clearing), it sees the "new" (re-added) text
       expect(response.state).toBe('expired');
     });
+
+    test('handles "does not exist" message as invalid state', async () => {
+      loadSavedDom('does_not_exist');
+      const listener = loadHandler();
+      jest.useFakeTimers();
+      simulateResultUpdate();
+
+      const redeemPromise = listener({
+        action: 'redeemCode',
+        code: 'NON-EXISTENT-CODE',
+        game: 'borderlands3',
+        platforms: ['steam']
+      });
+
+      await flushAllTimers();
+      const response = await redeemPromise;
+
+      expect(response.success).toBe(false);
+      expect(response.state).toBe('invalid');
+    });
   });
 });

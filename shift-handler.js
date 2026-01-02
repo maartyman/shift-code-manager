@@ -28,7 +28,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                 return { success: false, state: 'expired' };
             }
             
-            if (pageText.includes('invalid') || pageText.includes('not valid')) {
+            if (pageText.includes('invalid') || pageText.includes('not valid') || pageText.includes('does not exist')) {
                 return { success: false, state: 'invalid' };
             }
         }
@@ -50,7 +50,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                 return { success: false, state: 'expired' };
             }
             
-            if (alertText.includes('invalid')) {
+            if (alertText.includes('invalid') || alertText.includes('does not exist')) {
                 return { success: false, state: 'invalid' };
             }
         }
@@ -134,7 +134,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                         resolve({ state: "expired" });
                     } else if (resultText.includes("already been redeemed")) {
                         resolve({ state: "checked" });
-                    } else if (resultText.includes("invalid") || resultText.includes("not valid")) {
+                    } else if (resultText.includes("invalid") || resultText.includes("not valid") || resultText.includes("does not exist")) {
                         resolve({ state: "invalid" });
                     } else if (results.querySelectorAll("h2").length > 0) {
                         resolve({ state: "can_redeem" });

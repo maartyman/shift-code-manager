@@ -160,16 +160,17 @@ async function updateCodeOverview() {
     counts.new += unprocessedCodesForCurrentPlatform.length;
     
     // Combine expired and invalid as "expired"
-    counts.expired += counts.invalid;
+    // counts.expired += counts.invalid;
     
     // Calculate total
-    const total = counts.new + counts.redeemed + counts.validated + counts.expired + counts.error + counts.checked;
+    const total = counts.new + counts.redeemed + counts.validated + counts.expired + counts.error + counts.checked + counts.invalid;
     
     // Update UI
     document.getElementById('newCount').textContent = counts.new;
     document.getElementById('redeemedCount').textContent = counts.redeemed;
     document.getElementById('validatedCount').textContent = counts.validated;
     document.getElementById('expiredCount').textContent = counts.expired;
+    document.getElementById('invalidCount').textContent = counts.invalid;
     document.getElementById('errorCount').textContent = counts.error;
     document.getElementById('totalCount').textContent = total;
 }
