@@ -56,6 +56,14 @@
       font-size: 14px;
       color: #333;
     }
+
+    .section-label {
+      display: block;
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #333;
+      font-weight: normal;
+    }
     
     button {
       padding: 8px 12px;
@@ -479,6 +487,10 @@
       color: #e5e5e5;
     }
 
+    body.dark-mode .section-label {
+      color: #e5e5e5;
+    }
+
     body.dark-mode .notification-games-grid label:hover {
       background-color: #26313b;
     }
@@ -525,7 +537,7 @@
     <!-- Selection Block -->
     <div class="section">
       <h3>Selection</h3>
-      <label for="gameSelect" style="display: block; margin: 0 0 10px 0; font-size: 14px; color: #333; font-weight: normal;">Game:</label>
+      <label for="gameSelect" class="section-label">Game:</label>
       <select id="gameSelect">
         <option value="borderlands4">Borderlands 4</option>
         <option value="tinytina">Tiny Tina's Wonderlands</option>
@@ -533,7 +545,7 @@
         <option value="borderlands2">Borderlands 2</option>
       </select>
       
-      <label for="platformSelect" style="display: block; margin: 15px 0 10px 0; font-size: 14px; color: #333; font-weight: normal;">Platform:</label>
+      <label for="platformSelect" class="section-label" style="margin-top: 15px;">Platform:</label>
       <select id="platformSelect">
         <option value="steam">Steam</option>
         <option value="xbox">Xbox Live</option>
@@ -544,6 +556,15 @@
       </select>
     </div>
     
+    <!-- Actions Block -->
+    <div class="section">
+      <h3>Actions</h3>
+      <button id="fetchCodesButton">Fetch New Codes</button>
+      <button id="redeemCodesButton">Redeem Codes</button>
+      <button id="viewStatesButton">View Code States</button>
+      <button id="resetStorage">Reset Storage</button>
+    </div>
+
     <!-- Overview Block -->
     <div class="section">
       <h3>Code Overview</h3>
@@ -573,15 +594,6 @@
           <span id="totalCount" class="overview-count">0</span>
         </div>
       </div>
-    </div>
-    
-    <!-- Actions Block -->
-    <div class="section">
-      <h3>Actions</h3>
-      <button id="fetchCodesButton">Fetch New Codes</button>
-      <button id="redeemCodesButton">Redeem Codes</button>
-      <button id="viewStatesButton">View Code States</button>
-      <button id="resetStorage">Reset Storage</button>
     </div>
     
     <!-- Status Block -->
