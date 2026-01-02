@@ -90,16 +90,22 @@ browser.runtime.onMessage.addListener(async (message) => {
             }
             
             inputField.value = code;
+            inputField.dispatchEvent(new Event('input', { bubbles: true }));
+            inputField.dispatchEvent(new Event('change', { bubbles: true }));
+            inputField.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
 
-            // Capture initial state to detect changes
             const resultsNode = document.getElementById("code_results");
-            const initialResultHtml = resultsNode ? resultsNode.innerHTML.trim() : "";
+            if (resultsNode) {
+                resultsNode.innerHTML = "";
+            }
 
             // Step 2: Press check
             const checkButton = document.getElementById("shift_code_check");
             if (!checkButton) {
                 return { success: false, error: "Check button not found", state: "error" };
             }
+            
+            checkButton.removeAttribute('disabled');
             
             checkButton.click();
 
@@ -109,18 +115,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                 const checkForResult = () => {
                     attempts++;
                     if (attempts > 30) {
-                        // If we timed out but have a result, return it (handles case where result didn't change but is valid)
-                        const finalResults = document.getElementById("code_results");
-                        if (finalResults && finalResults.innerHTML.trim()) {
-                             const finalText = finalResults.innerHTML.toLowerCase();
-                             if (finalText.includes("expired")) resolve({ state: "expired" });
-                             else if (finalText.includes("already been redeemed")) resolve({ state: "checked" });
-                             else if (finalText.includes("invalid") || finalText.includes("not valid")) resolve({ state: "invalid" });
-                             else if (finalResults.querySelectorAll("h2").length > 0) resolve({ state: "can_redeem" });
-                             else reject({ error: "Check took too long", state: "error" });
-                        } else {
-                            reject({ error: "Check took too long", state: "error" });
-                        }
+                        reject({ error: "Check took too long", state: "error" });
                         return;
                     }
                     
@@ -128,12 +123,6 @@ browser.runtime.onMessage.addListener(async (message) => {
                     const currentHtml = results ? results.innerHTML.trim() : "";
 
                     if (!results || !currentHtml) {
-                        setTimeout(checkForResult, 1000);
-                        return;
-                    }
-
-                    // If content hasn't changed from initial state, keep waiting
-                    if (initialResultHtml && currentHtml === initialResultHtml) {
                         setTimeout(checkForResult, 1000);
                         return;
                     }

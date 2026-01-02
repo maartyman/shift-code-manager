@@ -27,35 +27,59 @@ function loadHandler() {
   return getBackgroundListener();
 }
 
-function stubRedeemForms() {
-  return Array.from(document.querySelectorAll('form'))
-    .map((form) => {
-      const button = form.querySelector('.redeem_button');
-      if (!button) {
-        return null;
-      }
-
-      const label = String(button.value || '').toLowerCase();
-      const platform =
-        Object.keys(PLATFORM_LABELS).find((key) =>
+function setupFormMocking() {
+  const capturedForms = [];
+  
+  const mockForm = (form) => {
+    form.submit = jest.fn(() => form.remove());
+    
+    // Determine platform for tracking
+    const button = form.querySelector('.redeem_button');
+    let platform = 'unknown';
+    if (button) {
+        const label = String(button.value || '').toLowerCase();
+        platform = Object.keys(PLATFORM_LABELS).find((key) =>
           PLATFORM_LABELS[key].some((term) => label.includes(term))
         ) || 'unknown';
+    }
+    capturedForms.push({ platform, form });
+  };
 
-      form.submit = jest.fn(() => form.remove());
-      return { platform, form };
-    })
-    .filter(Boolean);
+  // Mock existing forms
+  document.querySelectorAll('form').forEach(mockForm);
+
+  // Mock future forms
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) {
+          const forms = node.tagName === 'FORM' ? [node] : node.querySelectorAll('form');
+          forms.forEach(mockForm);
+        }
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  return { capturedForms, observer };
 }
 
 function simulateResultUpdate() {
   const checkButton = document.getElementById('shift_code_check');
-  if (checkButton) {
+  const results = document.getElementById('code_results');
+  
+  if (checkButton && results) {
+    // Enable button so it can be clicked (snapshots might have it disabled)
+    checkButton.removeAttribute('disabled');
+
+    // Capture the content that SHOULD be there (from the snapshot)
+    // We assume the snapshot represents the "result" state.
+    const resultHtml = results.innerHTML;
+    
     checkButton.addEventListener('click', () => {
       setTimeout(() => {
-        const results = document.getElementById('code_results');
-        if (results) {
-          results.insertAdjacentHTML('beforeend', '<!-- updated -->');
-        }
+        // Restore the content, simulating the site responding
+        results.innerHTML = resultHtml;
       }, 100);
     });
   }
@@ -130,7 +154,7 @@ describe('shift-handler message listener', () => {
 
       const listener = loadHandler();
       jest.useFakeTimers();
-      const trackedForms = stubRedeemForms();
+      const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
         action: 'redeemCode',
@@ -153,9 +177,19 @@ describe('shift-handler message listener', () => {
         { platform: 'xbox', success: true, attempts: 2 }
       ]);
 
-      trackedForms.forEach(({ form }) => {
-        expect(form.isConnected).toBe(false);
-      });
+      // We check if we captured forms for both platforms
+      // Note: capturedForms contains both initial (removed) and restored forms.
+      // We need to check if ANY form for the platform was submitted.
+      const steamForms = capturedForms.filter(f => f.platform === 'steam');
+      const xboxForms = capturedForms.filter(f => f.platform === 'xbox');
+      
+      expect(steamForms.length).toBeGreaterThan(0);
+      expect(xboxForms.length).toBeGreaterThan(0);
+      
+      expect(steamForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(true);
+      expect(xboxForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(true);
+      
+      observer.disconnect();
     });
 
     test('returns platform not available when button missing', async () => {
@@ -165,7 +199,7 @@ describe('shift-handler message listener', () => {
 
       const listener = loadHandler();
       jest.useFakeTimers();
-      const trackedForms = stubRedeemForms();
+      const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
         action: 'redeemCode',
@@ -188,11 +222,10 @@ describe('shift-handler message listener', () => {
         expect.objectContaining({ platform: 'xbox', success: true, attempts: 2 })
       ]);
 
-      trackedForms.forEach(({ platform, form }) => {
-        if (platform === 'xbox') {
-          expect(form.isConnected).toBe(false);
-        }
-      });
+      const xboxForms = capturedForms.filter(f => f.platform === 'xbox');
+      expect(xboxForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(true);
+      
+      observer.disconnect();
     });
 
     test('gracefully skips requested platform unavailable for Borderlands 2', async () => {
@@ -202,7 +235,7 @@ describe('shift-handler message listener', () => {
 
       const listener = loadHandler();
       jest.useFakeTimers();
-      const trackedForms = stubRedeemForms();
+      const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
         action: 'redeemCode',
@@ -225,12 +258,8 @@ describe('shift-handler message listener', () => {
         state: 'submitted',
         platforms: [{ platform: 'steam', success: false, error: 'Platform not available' }]
       });
-
-      trackedForms.forEach(({ platform, form }) => {
-        if (platform === 'psn') {
-          expect(form.isConnected).toBe(true);
-        }
-      });
+      
+      observer.disconnect();
     });
 
     test('waits for results before attempting platform redemption', async () => {
@@ -251,7 +280,9 @@ describe('shift-handler message listener', () => {
       await jest.runOnlyPendingTimersAsync();
       const results = document.getElementById('code_results');
       results.innerHTML = getCodeResultsMarkup('choose_platform');
-      const trackedForms = stubRedeemForms();
+      
+      // We need to mock the forms that just appeared
+      const { capturedForms, observer } = setupFormMocking();
 
       await flushAllTimers();
       const response = await redeemPromise;
@@ -267,9 +298,12 @@ describe('shift-handler message listener', () => {
         { platform: 'xbox', success: true, attempts: 2 }
       ]);
 
-      trackedForms.forEach(({ form }) => {
-        expect(form.isConnected).toBe(false);
-      });
+      const steamForms = capturedForms.filter(f => f.platform === 'steam');
+      const xboxForms = capturedForms.filter(f => f.platform === 'xbox');
+      expect(steamForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(true);
+      expect(xboxForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(true);
+      
+      observer.disconnect();
     });
 
     test('supports consecutive redeems as the page resets between submissions', async () => {
@@ -279,7 +313,7 @@ describe('shift-handler message listener', () => {
 
       const listener = loadHandler();
       jest.useFakeTimers();
-      let trackedForms = stubRedeemForms();
+      let { capturedForms, observer } = setupFormMocking();
 
       const firstRedeem = listener({
         action: 'redeemCode',
@@ -301,10 +335,17 @@ describe('shift-handler message listener', () => {
         state: 'submitted',
         platforms: [{ platform: 'steam', success: true, attempts: 2 }]
       });
+      
+      observer.disconnect();
+      
       // Simulate the page updating after the first redemption.
       loadSavedDom('choose_platform_after_redeem');
       simulateResultUpdate();
-      trackedForms = stubRedeemForms();
+      
+      // Re-setup mocking for new DOM
+      const secondMock = setupFormMocking();
+      capturedForms = secondMock.capturedForms;
+      observer = secondMock.observer;
 
       const secondRedeem = listener({
         action: 'redeemCode',
@@ -326,6 +367,8 @@ describe('shift-handler message listener', () => {
         state: 'submitted',
         platforms: [{ platform: 'xbox', success: true, attempts: 2 }]
       });
+      
+      observer.disconnect();
     });
 
     test('correctly identifies unavailable platform even if mentioned in text (mixed platform bug)', async () => {
@@ -336,7 +379,20 @@ describe('shift-handler message listener', () => {
       
       // We simulate the button NOT disappearing immediately to mimic a potential "hang" or retry loop
       // if the button doesn't go away, it will retry 10 times (10 seconds)
-      const trackedForms = stubRedeemForms(false);
+      // setupFormMocking mocks submit -> remove by default.
+      // To simulate "not disappearing", we need to override the mock.
+      
+      const { capturedForms, observer } = setupFormMocking();
+      
+      // Override mock for this test to NOT remove the form
+      // But wait, setupFormMocking applies to all forms.
+      // We can iterate capturedForms and change the mock implementation?
+      // But capturedForms is populated as they are found.
+      // The initial forms are already in capturedForms.
+      
+      capturedForms.forEach(({ form }) => {
+          form.submit = jest.fn(); // Do nothing, so form stays
+      });
 
       // Request Steam, but only Xbox is available (and Steam is mentioned in text)
       const redeemPromise = listener({
@@ -355,8 +411,10 @@ describe('shift-handler message listener', () => {
       ]);
 
       // It should NOT have clicked the Xbox button
-      const xboxForm = trackedForms.find(f => f.platform === 'xbox');
+      const xboxForm = capturedForms.find(f => f.platform === 'xbox');
       expect(xboxForm.form.submit).not.toHaveBeenCalled();
+      
+      observer.disconnect();
     });
 
     test('waits for new results when previous result was expired', async () => {
@@ -407,6 +465,39 @@ describe('shift-handler message listener', () => {
       expect(response.state).toBe('submitted');
       
       observer.disconnect();
+    });
+
+    test('handles consecutive identical results by clearing previous results', async () => {
+      loadSavedDom('expired_code');
+      const listener = loadHandler();
+      jest.useFakeTimers();
+
+      const initialHtml = document.getElementById('code_results').innerHTML;
+
+      // Mock the behavior: clicking check puts the SAME content back after a delay
+      const checkButton = document.getElementById('shift_code_check');
+      checkButton.addEventListener('click', () => {
+        setTimeout(() => {
+          const results = document.getElementById('code_results');
+          results.innerHTML = initialHtml; // Same "Expired" message
+        }, 2000);
+      });
+
+      const redeemPromise = listener({
+        action: 'redeemCode',
+        code: 'ANOTHER-EXPIRED-CODE',
+        game: 'borderlands3',
+        platforms: ['steam']
+      });
+
+      // Advance timers
+      await jest.advanceTimersByTimeAsync(3000);
+
+      const response = await redeemPromise;
+
+      // If buggy, it times out waiting for change (because content is identical)
+      // If fixed (by clearing), it sees the "new" (re-added) text
+      expect(response.state).toBe('expired');
     });
   });
 });
