@@ -14,13 +14,15 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from zipfile import ZIP_DEFLATED, ZipFile
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MANIFEST = REPO_ROOT / "manifest.json"
+CHROME_MANIFEST = REPO_ROOT / "manifest.chrome.json"
+FIREFOX_MANIFEST = REPO_ROOT / "manifest.firefox.json"
+DEFAULT_MANIFEST = CHROME_MANIFEST
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 DIST_DIR = REPO_ROOT / "dist"
 PACKAGE_TEMPLATE = "shift-code-manager-{version}.zip"
 TEST_PACKAGE_SUFFIX = "test"
 PACKAGE_ENTRIES: Sequence[str] = (
-    "manifest.json",
+    "manifest.chrome.json",
     "popup.html",
     "help.html",
     "popup.js",
@@ -95,7 +97,7 @@ def _ensure_clean_worktree() -> None:
 
 def _load_manifest(path: Path) -> dict:
     if not path.exists():
-        raise BuildError(f"manifest.json not found at {path}")
+        raise BuildError(f"Manifest not found at {path}")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -140,18 +142,34 @@ def _iter_package_paths(entries: Sequence[str]) -> Iterable[Path]:
             raise BuildError(f"Package entry missing: {entry}")
 
 
-def _build_zip(version: str, *, suffix: Optional[str] = None) -> Path:
+def _build_zip(version: str, *, suffix: Optional[str] = None, manifest_path: Optional[Path] = None) -> Path:
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     filename = PACKAGE_TEMPLATE.format(version=version)
     if suffix:
         stem, ext = filename.rsplit(".", 1)
         filename = f"{stem}-{suffix}.{ext}"
     artifact_path = DIST_DIR / filename
+    if manifest_path and not manifest_path.exists():
+        raise BuildError(f"Manifest override not found at {manifest_path}")
     with ZipFile(artifact_path, "w", ZIP_DEFLATED) as zf:
         for file_path in _iter_package_paths(PACKAGE_ENTRIES):
+            if file_path == CHROME_MANIFEST:
+                source_path = manifest_path or file_path
+                zf.write(source_path, "manifest.json")
+                continue
             arcname = file_path.relative_to(REPO_ROOT)
             zf.write(file_path, arcname.as_posix())
     return artifact_path
+
+
+def _build_release_artifacts(version: str, *, test_build: bool) -> List[Path]:
+    chrome_suffix = TEST_PACKAGE_SUFFIX if test_build else None
+    firefox_suffix = f"{TEST_PACKAGE_SUFFIX}-firefox" if test_build else "firefox"
+    artifacts = [
+        _build_zip(version, suffix=chrome_suffix),
+        _build_zip(version, suffix=firefox_suffix, manifest_path=FIREFOX_MANIFEST),
+    ]
+    return artifacts
 
 
 def _stage_and_commit(version: str, paths: Sequence[Path]) -> None:
@@ -364,17 +382,23 @@ def main() -> int:
         selection, previews = _prompt_choice(current_version)
 
         if selection == "test":
-            artifact = _build_zip(current_version, suffix=TEST_PACKAGE_SUFFIX)
-            print(f"✅ Test build ready: {artifact.relative_to(REPO_ROOT)}")
+            artifacts = _build_release_artifacts(current_version, test_build=True)
+            rel_paths = ", ".join(str(path.relative_to(REPO_ROOT)) for path in artifacts)
+            print(f"✅ Test builds ready: {rel_paths}")
             return 0
 
         _ensure_clean_worktree()
         new_version = previews[selection]
         _validate_version(new_version)
         original_manifest_text = manifest_path.read_text(encoding="utf-8")
+        original_firefox_manifest_text = FIREFOX_MANIFEST.read_text(encoding="utf-8") if FIREFOX_MANIFEST.exists() else None
         original_changelog_text = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else None
         manifest["version"] = new_version
         _write_manifest(manifest_path, manifest)
+        if original_firefox_manifest_text is not None:
+            firefox_manifest = _load_manifest(FIREFOX_MANIFEST)
+            firefox_manifest["version"] = new_version
+            _write_manifest(FIREFOX_MANIFEST, firefox_manifest)
         artifact_path: Optional[Path] = None
         commit_created = False
         tag_created = False
@@ -382,13 +406,17 @@ def main() -> int:
         try:
             generate_changelog(manifest_path, CHANGELOG_PATH)
             print("Changelog regenerated with Features/Fixes/Chore/Other sections.")
-            print("Review and edit manifest.json and CHANGELOG.md as needed.")
+            print("Review and edit manifest.chrome.json, manifest.firefox.json, and CHANGELOG.md as needed.")
             try:
                 input("Press Enter to package and commit, or Ctrl+C to cancel: ")
             except KeyboardInterrupt as exc:  # pragma: no cover - user abort
                 raise BuildError("Release cancelled.") from exc
-            artifact_path = _build_zip(new_version)
-            _stage_and_commit(new_version, (manifest_path, CHANGELOG_PATH))
+            artifacts = _build_release_artifacts(new_version, test_build=False)
+            artifact_path = artifacts[0]
+            paths_to_commit = [manifest_path, CHANGELOG_PATH]
+            if FIREFOX_MANIFEST.exists():
+                paths_to_commit.append(FIREFOX_MANIFEST)
+            _stage_and_commit(new_version, paths_to_commit)
             commit_created = True
             _create_tag(new_version)
             tag_created = True
@@ -397,20 +425,24 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001 - ensure state rolls back
             if not commit_created:
                 manifest_path.write_text(original_manifest_text, encoding="utf-8")
+                if original_firefox_manifest_text is None:
+                    if FIREFOX_MANIFEST.exists():
+                        FIREFOX_MANIFEST.unlink()
+                else:
+                    FIREFOX_MANIFEST.write_text(original_firefox_manifest_text, encoding="utf-8")
                 if original_changelog_text is None:
                     if CHANGELOG_PATH.exists():
                         CHANGELOG_PATH.unlink()
                 else:
                     CHANGELOG_PATH.write_text(original_changelog_text, encoding="utf-8")
                 try:
-                    _run_git(
-                        [
-                            "reset",
-                            "HEAD",
-                            str(manifest_path.relative_to(REPO_ROOT)),
-                            str(CHANGELOG_PATH.relative_to(REPO_ROOT)),
-                        ]
-                    )
+                    reset_paths = [
+                        str(manifest_path.relative_to(REPO_ROOT)),
+                        str(CHANGELOG_PATH.relative_to(REPO_ROOT)),
+                    ]
+                    if FIREFOX_MANIFEST.exists():
+                        reset_paths.append(str(FIREFOX_MANIFEST.relative_to(REPO_ROOT)))
+                    _run_git(["reset", "HEAD", *reset_paths])
                 except BuildError:
                     pass
             if tag_created and not push_completed:

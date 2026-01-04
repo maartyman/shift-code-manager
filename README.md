@@ -31,7 +31,10 @@ The SHIFT Code Manager extension makes redeeming Borderlands SHIFT codes quick a
 1. Download clone this repository
 2. Open your browser's extension management page:
    - **Firefox**: `about:debugging`
-3. Click "Load Temporary Add-on..." and select the `manifest.json` in the cloned repository
+   - **Chrome**: `chrome://extensions/`
+3. Load the Add-on into the browser:
+   - **Firefox**: Run `make firefox`, then click "Load Temporary Add-on..." and select `manifest.json`
+   - **Chrome**: Run `make chrome`, then click "Load unpacked" and select the folder of the cloned repository
 
 ## 🔧 Development
 
@@ -66,7 +69,7 @@ npm test
 # Create a release
 make build
 
-# Version is bumped in manifest.json
+# Version is bumped in manifest.chrome.json (keep manifest.firefox.json in sync)
 # Changelog is regenerated automatically
 # Output: dist/shift-code-manager-<version>.zip
 ```
@@ -76,31 +79,15 @@ make build
 - `make test-server` - Start development test server  
 - `make build` - Create release: bump version, refresh changelog, package zip
 - `make clean` - Remove generated files
-
-## 📁 Project Structure
-
-```
-shift-code-manager/
-├── manifest.json           # Extension manifest
-├── popup.html             # Extension popup interface
-├── popup.js               # Main extension logic
-├── background.js          # Background service worker
-├── shift-handler.js       # Content script for SHIFT website
-├── assets/                # Extension icons and images
-├── test/
-│   └── test-server.py     # Development test server
-├── dist/                  # Build output directory
-├── Makefile              # Production build system
-├── README.md             # Project documentation
-└── PRIVACY.md            # Privacy policy for store submissions
-```
+- `make chrome` - Copy the manifest.chrome.json into manifest.json
+- `make firefox` - Copy the manifest.firefox.json into manifest.json
 
 ## 🌐 Browser Compatibility
 
 | Browser | Support | Notes |
 |---------|---------|-------|
-| Firefox | ✅ Full | Native manifest v2 support |
-| Chrome | ❌ Not Compatible | Future Work |
+| Firefox | ✅ Full | Manifest v2 |
+| Chrome | ✅ Full | Manifest v3 |
 | Edge | ❌ Not Compatible | Future Work |
 | Safari | ❌ Not Compatible | Future Work |
 

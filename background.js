@@ -1,3 +1,6 @@
+const browserApi = typeof browser !== 'undefined' ? browser : chrome;
+const actionApi = browserApi.action || browserApi.browserAction;
+
 const urls = [
     "https://mentalmars.com/game-news/tiny-tinas-wonderlands-shift-codes/",
     "https://www.rockpapershotgun.com/tiny-tinas-wonderlands-shift-codes"
@@ -26,7 +29,7 @@ async function fetchCodesFromWebsites(urls, game = 'tinytina') {
     // Store codes in local storage with state tracking
     try {
         // Get already stored codes and states
-        const storedData = await browser.storage.local.get(["ShiftCodes", "gameNewCodes", "codeStates"]);
+        const storedData = await browserApi.storage.local.get(["ShiftCodes", "gameNewCodes", "codeStates"]);
         let storedCodes = storedData.ShiftCodes || [];
         let gameNewCodes = storedData.gameNewCodes || {};
         let codeStates = storedData.codeStates || {};
@@ -63,7 +66,7 @@ async function fetchCodesFromWebsites(urls, game = 'tinytina') {
         });
 
         // Store updated codes and states
-        await browser.storage.local.set({ 
+        await browserApi.storage.local.set({ 
             ShiftCodes: storedCodes,
             gameNewCodes: gameNewCodes,
             codeStates: codeStates
@@ -78,36 +81,45 @@ async function fetchCodesFromWebsites(urls, game = 'tinytina') {
 }
 
 // Listen for messages from the popup
-browser.runtime.onMessage.addListener((message) => {
+browserApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "fetchCodes") {
         const urls = message.urls || [
             "https://mentalmars.com/game-news/tiny-tinas-wonderlands-shift-codes/",
             "https://www.rockpapershotgun.com/tiny-tinas-wonderlands-shift-codes"
         ];
         const game = message.game || 'tinytina';
-        
-        return fetchCodesFromWebsites(urls, game)
-            .catch(error => ({ success: false, error: error?.message || String(error) }));
+
+        fetchCodesFromWebsites(urls, game)
+            .then(result => sendResponse(result))
+            .catch(error => {
+                console.error("Fetch codes failed:", error);
+                sendResponse({ success: false, error: error?.message || String(error) });
+            });
+        return true;
     }
     if (message.action === "updateNotificationSettings") {
-        return updateNotificationAlarm(message.settings)
-            .then(() => ({ success: true }))
-            .catch(error => ({ success: false, error: error?.message || String(error) }));
-
+        updateNotificationAlarm(message.settings)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => {
+                console.error("Update notification settings failed:", error);
+                sendResponse({ success: false, error: error?.message || String(error) });
+            });
+        return true;
     }
+    return false;
 });
 
 // Notification system implementation
 async function updateNotificationAlarm(settings) {
     // Clear existing alarm
-    browser.alarms.clear('dailyCodeCheck');
+    browserApi.alarms.clear('dailyCodeCheck');
     
     if (settings.enabled) {
         // Use intervalMinutes from settings (defaults to 1440 for daily)
         const intervalMinutes = settings.intervalMinutes || 1440;
         const delayMinutes = Math.min(1, intervalMinutes); // Start quickly, but not longer than interval
         
-        browser.alarms.create('dailyCodeCheck', {
+        browserApi.alarms.create('dailyCodeCheck', {
             delayInMinutes: delayMinutes,
             periodInMinutes: intervalMinutes
         });
@@ -129,7 +141,7 @@ async function updateNotificationAlarm(settings) {
 }
 
 // Handle alarm triggers
-browser.alarms.onAlarm.addListener(async (alarm) => {
+browserApi.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === 'dailyCodeCheck') {
         console.info('Running daily code check...');
         await performDailyCodeCheck();
@@ -166,7 +178,7 @@ async function performDailyCodeCheck() {
         console.info('=== DAILY CODE CHECK STARTED ===');
         
         // Get notification settings
-        const result = await browser.storage.local.get(['notificationSettings', 'customUrls']);
+        const result = await browserApi.storage.local.get(['notificationSettings', 'customUrls']);
         const notificationSettings = result.notificationSettings;
         const customUrls = result.customUrls || {};
         
@@ -253,7 +265,7 @@ async function showNewCodesNotification(gameResults, totalCount) {
     };
     
     // Only add buttons for Chrome (Firefox doesn't support them)
-    const isFirefox = typeof browser !== 'undefined' && browser.runtime.getURL('').startsWith('moz-extension://');
+    const isFirefox = browserApi.runtime.getURL('').startsWith('moz-extension://');
     if (!isFirefox) {
         notificationOptions.buttons = [
             { title: 'View Codes' },
@@ -261,44 +273,52 @@ async function showNewCodesNotification(gameResults, totalCount) {
         ];
     }
     
-    browser.notifications.create('newCodesFound', notificationOptions);
+    browserApi.notifications.create('newCodesFound', notificationOptions);
 }
 
 // Update extension badge
 async function updateBadge(count) {
+    if (!actionApi) {
+        return;
+    }
+
     if (count > 0) {
-        browser.browserAction.setBadgeText({ text: count.toString() });
-        browser.browserAction.setBadgeBackgroundColor({ color: '#007cba' });
+        actionApi.setBadgeText({ text: count.toString() });
+        actionApi.setBadgeBackgroundColor({ color: '#007cba' });
     } else {
-        browser.browserAction.setBadgeText({ text: '' });
+        actionApi.setBadgeText({ text: '' });
     }
 }
 
 // Handle notification clicks
-browser.notifications.onClicked.addListener((notificationId) => {
+browserApi.notifications.onClicked.addListener((notificationId) => {
     if (notificationId === 'newCodesFound') {
         // Open extension popup
-        browser.browserAction.openPopup();
+        if (actionApi?.openPopup) {
+            actionApi.openPopup();
+        }
     }
 });
 
 // Handle notification button clicks (Chrome only)
-const isFirefox = typeof browser !== 'undefined' && browser.runtime.getURL('').startsWith('moz-extension://');
-if (!isFirefox && browser.notifications.onButtonClicked) {
-    browser.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+const isFirefox = browserApi.runtime.getURL('').startsWith('moz-extension://');
+if (!isFirefox && browserApi.notifications.onButtonClicked) {
+    browserApi.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
         if (notificationId === 'newCodesFound') {
             if (buttonIndex === 0) { // View Codes button
-                browser.browserAction.openPopup();
+                if (actionApi?.openPopup) {
+                    actionApi.openPopup();
+                }
             }
             // Dismiss button (index 1) does nothing, notification will close
-            browser.notifications.clear(notificationId);
+            browserApi.notifications.clear(notificationId);
         }
     });
 }
 
 // Initialize notification system on extension startup
-browser.runtime.onStartup.addListener(async () => {
-    const result = await browser.storage.local.get(['notificationSettings']);
+browserApi.runtime.onStartup.addListener(async () => {
+    const result = await browserApi.storage.local.get(['notificationSettings']);
     const settings = result.notificationSettings;
     if (settings) {
         await updateNotificationAlarm(settings);
@@ -306,8 +326,8 @@ browser.runtime.onStartup.addListener(async () => {
 });
 
 // Also initialize on extension install
-browser.runtime.onInstalled.addListener(async () => {
-    const result = await browser.storage.local.get(['notificationSettings']);
+browserApi.runtime.onInstalled.addListener(async () => {
+    const result = await browserApi.storage.local.get(['notificationSettings']);
     const settings = result.notificationSettings;
     if (settings) {
         await updateNotificationAlarm(settings);
