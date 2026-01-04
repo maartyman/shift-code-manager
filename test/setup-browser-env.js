@@ -21,6 +21,7 @@ beforeEach(() => {
   document.head.innerHTML = '';
   document.body.innerHTML = '';
   jest.resetModules();
+  delete globalThis.__shiftHandlerListenerAdded;
 
   if (browser?.runtime?.onMessage?.hasOwnProperty('clearListeners')) {
     browser.runtime.onMessage.clearListeners();

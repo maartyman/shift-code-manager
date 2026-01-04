@@ -24,6 +24,9 @@ const notifyBorderlands2 = document.getElementById("notifyBorderlands2");
 const notifyBorderlandsPS = document.getElementById("notifyBorderlandsPS");
 const notifyTTWonderlands = document.getElementById("notifyTTWonderlands");
 
+const browserApi = typeof browser !== 'undefined' ? browser : chrome;
+const actionApi = browserApi.action || browserApi.browserAction;
+
 // Redemption state tracking
 let isRedeeming = false;
 let shouldStopRedemption = false;
@@ -35,6 +38,38 @@ function resetRedeemButton() {
     redeemButton.disabled = false;
     isRedeeming = false;
     shouldStopRedemption = false;
+}
+
+async function injectContentScript(tabId, file) {
+    if (browserApi.scripting?.executeScript) {
+        await browserApi.scripting.executeScript({
+            target: { tabId },
+            files: [file]
+        });
+    } else if (browserApi.tabs?.executeScript) {
+        await browserApi.tabs.executeScript(tabId, { file });
+    } else {
+        throw new Error('No available API to inject scripts');
+    }
+}
+
+async function evaluateInTab(tabId, func) {
+    if (browserApi.scripting?.executeScript) {
+        const [result] = await browserApi.scripting.executeScript({
+            target: { tabId },
+            func
+        });
+        return result?.result;
+    }
+
+    if (browserApi.tabs?.executeScript) {
+        const [result] = await browserApi.tabs.executeScript(tabId, {
+            code: `(${func.toString()})();`
+        });
+        return result;
+    }
+
+    throw new Error('No available API to evaluate scripts');
 }
 
 // Helper function to check if user needs to log in
@@ -122,7 +157,7 @@ async function updateCodeOverview() {
     const game = gameSelect.value;
     const platform = platformSelect.value;
     const codeStates = await getCodeStates();
-    const storedData = await browser.storage.local.get("gameNewCodes");
+    const storedData = await browserApi.storage.local.get("gameNewCodes");
     const gameNewCodes = storedData.gameNewCodes || {};
     const gameSpecificCodes = gameNewCodes[game] || [];
     
@@ -177,7 +212,7 @@ async function updateCodeOverview() {
 
 // Load timing settings
 async function loadTimingSettings() {
-    const result = await browser.storage.local.get(['timingSettings']);
+    const result = await browserApi.storage.local.get(['timingSettings']);
     const settings = result.timingSettings || {
         codeDelay: 5,
         retryDelay: 15
@@ -210,7 +245,7 @@ document.getElementById("saveTimingSettings").addEventListener("click", async ()
             retryDelay: retryDelay
         };
         
-        await browser.storage.local.set({ timingSettings: settings });
+        await browserApi.storage.local.set({ timingSettings: settings });
         
         document.getElementById("settingsStatus").textContent = "Timing settings saved successfully!";
         document.getElementById("settingsStatus").style.color = "green";
@@ -226,7 +261,7 @@ document.getElementById("saveTimingSettings").addEventListener("click", async ()
 
 // Load notification settings
 async function loadNotificationSettings() {
-    const result = await browser.storage.local.get(['notificationSettings']);
+    const result = await browserApi.storage.local.get(['notificationSettings']);
     const settings = result.notificationSettings || {
         enabled: false,
         intervalMinutes: 1440, // Default: 24 hours
@@ -287,7 +322,7 @@ function applyDarkModeClass(isEnabled) {
 
 async function loadAppearanceSettings() {
     try {
-        const result = await browser.storage.local.get(['appearanceSettings']);
+        const result = await browserApi.storage.local.get(['appearanceSettings']);
         const settings = result.appearanceSettings || { darkMode: false };
         applyDarkModeClass(settings.darkMode);
         if (darkModeToggle) {
@@ -327,11 +362,11 @@ document.getElementById("saveNotificationSettings").addEventListener("click", as
             }
         };
         
-        await browser.storage.local.set({ notificationSettings: settings });
+        await browserApi.storage.local.set({ notificationSettings: settings });
         
         // Send message to background script to update alarm
-        if (typeof browser !== 'undefined' && browser.runtime) {
-            browser.runtime.sendMessage({
+        if (browserApi.runtime?.sendMessage) {
+            browserApi.runtime.sendMessage({
                 action: 'updateNotificationSettings',
                 settings: settings
             });
@@ -370,7 +405,7 @@ if (darkModeToggle) {
         darkModeToggle.classList.toggle('active', willEnable);
         applyDarkModeClass(willEnable);
         try {
-            await browser.storage.local.set({ appearanceSettings: { darkMode: willEnable } });
+            await browserApi.storage.local.set({ appearanceSettings: { darkMode: willEnable } });
         } catch (error) {
             console.error('Error saving appearance settings:', error);
         }
@@ -379,7 +414,7 @@ if (darkModeToggle) {
 
 // Load URLs for settings tab
 async function loadSettingsUrls(game) {
-    const result = await browser.storage.local.get(['customUrls']);
+    const result = await browserApi.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
     const gameUrls = customUrls[game] || defaultUrls[game] || [];
     displaySettingsUrls(gameUrls);
@@ -415,7 +450,7 @@ function displaySettingsUrls(urls) {
 // Remove URL from settings
 async function removeSettingsUrl(index) {
     const game = gameSelect.value;
-    const result = await browser.storage.local.get(['customUrls']);
+    const result = await browserApi.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
     
     if (!customUrls[game]) {
@@ -423,7 +458,7 @@ async function removeSettingsUrl(index) {
     }
     
     customUrls[game].splice(index, 1);
-    await browser.storage.local.set({ customUrls });
+    await browserApi.storage.local.set({ customUrls });
     await loadSettingsUrls(game);
     statusElement.textContent = "URL removed successfully";
 }
@@ -445,7 +480,7 @@ settingsAddUrlButton.addEventListener('click', async () => {
     
     const game = gameSelect.value;
 
-    const result = await browser.storage.local.get(['customUrls']);
+    const result = await browserApi.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
     
     if (!customUrls[game]) {
@@ -454,7 +489,7 @@ settingsAddUrlButton.addEventListener('click', async () => {
     
     if (!customUrls[game].includes(newUrl)) {
         customUrls[game].push(newUrl);
-        await browser.storage.local.set({ customUrls });
+        await browserApi.storage.local.set({ customUrls });
         await loadSettingsUrls(game);
         settingsNewUrlInput.value = '';
         statusElement.textContent = "URL added successfully";
@@ -467,7 +502,7 @@ settingsAddUrlButton.addEventListener('click', async () => {
 document.getElementById("exportSettings").addEventListener("click", async () => {
     try {
         // Gather all settings data
-        const settingsData = await browser.storage.local.get([
+        const settingsData = await browserApi.storage.local.get([
             'selectedGame',
             'customUrls', 
             'timingSettings',
@@ -550,22 +585,22 @@ document.getElementById("importFileInput").addEventListener("change", async (eve
         
         // Validate and set each setting
         if (settingsToImport.selectedGame) {
-            await browser.storage.local.set({ selectedGame: settingsToImport.selectedGame });
+            await browserApi.storage.local.set({ selectedGame: settingsToImport.selectedGame });
             gameSelect.value = settingsToImport.selectedGame;
         }
         
         if (settingsToImport.customUrls) {
-            await browser.storage.local.set({ customUrls: settingsToImport.customUrls });
+            await browserApi.storage.local.set({ customUrls: settingsToImport.customUrls });
         }
         
         if (settingsToImport.timingSettings) {
-            await browser.storage.local.set({ timingSettings: settingsToImport.timingSettings });
+            await browserApi.storage.local.set({ timingSettings: settingsToImport.timingSettings });
         }
         
         if (settingsToImport.notificationSettings) {
-            await browser.storage.local.set({ notificationSettings: settingsToImport.notificationSettings });
+            await browserApi.storage.local.set({ notificationSettings: settingsToImport.notificationSettings });
             // Update background alarm with new settings
-            browser.runtime.sendMessage({
+            browserApi.runtime.sendMessage({
                 action: 'updateNotificationSettings',
                 settings: settingsToImport.notificationSettings
             });
@@ -610,7 +645,7 @@ const CODE_STATES = {
 
 // Code state management functions
 async function getCodeStates() {
-    const result = await browser.storage.local.get(['codeStates']);
+    const result = await browserApi.storage.local.get(['codeStates']);
     return result.codeStates || {};
 }
 
@@ -637,7 +672,7 @@ async function setCodeState(code, state, game, platform) {
         retryCount: codeStates[key]?.retryCount || 0
     };
     
-    await browser.storage.local.set({ codeStates });
+    await browserApi.storage.local.set({ codeStates });
 }
 
 async function getCodeState(code, game, platform) {
@@ -652,7 +687,7 @@ async function incrementRetryCount(code, game, platform) {
     if (codeStates[key]) {
         codeStates[key].retryCount = (codeStates[key].retryCount || 0) + 1;
         codeStates[key].timestamp = Date.now();
-        await browser.storage.local.set({ codeStates });
+        await browserApi.storage.local.set({ codeStates });
     }
 }
 
@@ -674,7 +709,7 @@ const defaultUrls = {
 
 // Load settings from storage
 async function loadSettings() {
-    const result = await browser.storage.local.get(['selectedGame', 'selectedPlatform', 'customUrls', 'gameNewCodes']);
+    const result = await browserApi.storage.local.get(['selectedGame', 'selectedPlatform', 'customUrls', 'gameNewCodes']);
     
     // Set selected game
     const selectedGame = result.selectedGame || 'borderlands4';
@@ -701,7 +736,7 @@ async function loadSettings() {
 
 // Load URLs for a specific game (for main tab reference only)
 async function loadUrlsForGame(game) {
-    const result = await browser.storage.local.get(['customUrls']);
+    const result = await browserApi.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
     
     // Get URLs for this game (custom URLs or default ones)
@@ -714,7 +749,7 @@ async function loadUrlsForGame(game) {
 // Handle game selection change
 gameSelect.addEventListener('change', async () => {
     const selectedGame = gameSelect.value;
-    await browser.storage.local.set({ selectedGame });
+    await browserApi.storage.local.set({ selectedGame });
     await loadUrlsForGame(selectedGame);
     statusElement.textContent = `Switched to ${gameSelect.options[gameSelect.selectedIndex].text}`;
     
@@ -730,7 +765,7 @@ gameSelect.addEventListener('change', async () => {
 // Handle platform selection change
 platformSelect.addEventListener('change', async () => {
     const selectedPlatform = platformSelect.value;
-    await browser.storage.local.set({ selectedPlatform });
+    await browserApi.storage.local.set({ selectedPlatform });
     
     // Update code overview for new platform
     await updateCodeOverview();
@@ -752,10 +787,10 @@ document.getElementById("resetStorage").addEventListener("click", async () => {
         return; // User cancelled, do nothing
     }
     
-    await browser.storage.local.remove("ShiftCodes");
-    await browser.storage.local.remove("newShiftCodes");
-    await browser.storage.local.remove("gameNewCodes");
-    await browser.storage.local.remove("codeStates");
+    await browserApi.storage.local.remove("ShiftCodes");
+    await browserApi.storage.local.remove("newShiftCodes");
+    await browserApi.storage.local.remove("gameNewCodes");
+    await browserApi.storage.local.remove("codeStates");
     statusElement.textContent = "Storage reset successfully";
     // Update code overview after reset
     await updateCodeOverview();
@@ -812,7 +847,7 @@ document.getElementById("fetchCodesButton").addEventListener("click", async () =
     try {
         // Get current game and its URLs
         const game = gameSelect.value;
-        const result = await browser.storage.local.get(['customUrls']);
+        const result = await browserApi.storage.local.get(['customUrls']);
         const customUrls = result.customUrls || {};
         const gameUrls = customUrls[game] || defaultUrls[game] || [];
         
@@ -822,7 +857,7 @@ document.getElementById("fetchCodesButton").addEventListener("click", async () =
         }
 
         // Send a message to the background script to fetch codes
-        const response = await browser.runtime.sendMessage({ 
+        const response = await browserApi.runtime.sendMessage({ 
             action: "fetchCodes", 
             urls: gameUrls,
             game: game
@@ -867,14 +902,14 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
     const platform = platformSelect.value;
 
     // Load timing settings
-    const timingResult = await browser.storage.local.get(['timingSettings']);
+    const timingResult = await browserApi.storage.local.get(['timingSettings']);
     const timingSettings = timingResult.timingSettings || {
         codeDelay: 5,
         retryDelay: 15
     };
 
     // Retrieve stored codes for this specific game
-    const storedData = await browser.storage.local.get("gameNewCodes");
+    const storedData = await browserApi.storage.local.get("gameNewCodes");
     const gameNewCodes = storedData.gameNewCodes || {};
     let allCodes = gameNewCodes[game] || [];
     
@@ -924,22 +959,20 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
             await new Promise((resolve) => {
                 const listener = (tabId, changeInfo) => {
                     if (tabId === tab.id && changeInfo.status === "complete") {
-                        browser.tabs.onUpdated.removeListener(listener);
+                        browserApi.tabs.onUpdated.removeListener(listener);
                         resolve();
                     }
                 };
-                browser.tabs.onUpdated.addListener(listener);
+                browserApi.tabs.onUpdated.addListener(listener);
             });
 
-            const response = await browser.tabs.sendMessage(tab.id, {
+            const response = await browserApi.tabs.sendMessage(tab.id, {
                 action: "heartbeat"
             });
             if (response && response.status === "alive") {
                 return;
             }
-            await browser.tabs.executeScript(tab.id, {
-                file: "shift-handler.js"
-            });
+            await injectContentScript(tab.id, "shift-handler.js");
             await new Promise(resolve => setTimeout(resolve, 1000));
         };
 
@@ -947,7 +980,7 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
         const checkFinalResult = async (tabId, code) => {
             try {
                 // Send message to content script to check the page content
-                const result = await browser.tabs.sendMessage(tabId, {
+                const result = await browserApi.tabs.sendMessage(tabId, {
                     action: "checkFinalResult",
                     code: code
                 });
@@ -971,7 +1004,7 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
                 try {
                     // Try to get a response - this will work for error cases (expired/invalid/already redeemed)
                     // but will fail for successful redemptions due to page redirect
-                    redemptionResult = await browser.tabs.sendMessage(tab.id, {
+                    redemptionResult = await browserApi.tabs.sendMessage(tab.id, {
                         action: "redeemCode",
                         code: code,
                         game: game,
@@ -1035,16 +1068,16 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
 
         const url = "https://shift.gearboxsoftware.com/rewards";
 
-        let tab = (await browser.tabs.query({ url: url })).pop();
+        let tab = (await browserApi.tabs.query({ url: url })).pop();
         if (!tab) {
-            tab = await browser.tabs.create({ url: url });
+            tab = await browserApi.tabs.create({ url: url });
         }
 
-        await browser.tabs.update(tab.id, { url: url });
+        await browserApi.tabs.update(tab.id, { url: url });
         await waitForReloadAndInject();
 
         // Check if user needs to log in
-        const tabInfo = await browser.tabs.get(tab.id);
+        const tabInfo = await browserApi.tabs.get(tab.id);
         if (isLoginRequired(tabInfo.url)) {
             statusElement.textContent = "Not logged in! Please log in to SHIFT in the opened tab and try again";
             resetRedeemButton();
@@ -1074,12 +1107,12 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 
                 // Reload page before retry round
-                await browser.tabs.update(tab.id, { url: url });
+                await browserApi.tabs.update(tab.id, { url: url });
                 await waitForReloadAndInject();
                 await new Promise(resolve => setTimeout(resolve, 3000)); // Longer page load wait
                 
                 // Check if user needs to log in after page reload
-                const tabInfo = await browser.tabs.get(tab.id);
+                const tabInfo = await browserApi.tabs.get(tab.id);
                 if (isLoginRequired(tabInfo.url)) {
                     statusElement.textContent = "Session expired! Please log in to SHIFT in the opened tab and try again";
                     resetRedeemButton();
@@ -1150,14 +1183,12 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
 
                 // Check for rate limiting message
                 try {
-                    const message = await browser.tabs.executeScript(tab.id, {
-                        code: `
-                            const notice = document.getElementsByClassName("alert notice")[0];
-                            notice ? notice.innerHTML : null;
-                        `
+                    const message = await evaluateInTab(tab.id, () => {
+                        const notice = document.getElementsByClassName("alert notice")[0];
+                        return notice ? notice.innerHTML : null;
                     });
-                    
-                    if (message && message[0] && message[0].includes("To continue to redeem SHiFT codes, please launch a SHiFT-enabled title first!")) {
+
+                    if (message && message.includes("To continue to redeem SHiFT codes, please launch a SHiFT-enabled title first!")) {
                         statusElement.textContent = "Rate limited - please launch a SHiFT-enabled game first!";
                         // Exit all loops
                         codeQueue = [];
@@ -1213,8 +1244,8 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
 document.addEventListener('DOMContentLoaded', function() {
 
     // Clear badge when popup is opened
-    if (typeof browser !== 'undefined' && browser.browserAction) {
-        browser.browserAction.setBadgeText({ text: '' });
+    if (actionApi?.setBadgeText) {
+        actionApi.setBadgeText({ text: '' });
     }
 
     // Add event listeners to tab buttons
@@ -1239,9 +1270,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (helpButton) {
         helpButton.addEventListener('click', () => {
             try {
-                const helpUrl = browser.runtime.getURL('help.html');
+                const helpUrl = browserApi.runtime.getURL('help.html');
 
-                browser.tabs.create({
+                browserApi.tabs.create({
                     url: helpUrl,
                     active: true
                 }).catch((error) => {
@@ -1290,8 +1321,8 @@ if (document.readyState === 'loading') {
         helpButton.addEventListener("click", () => {
             
             try {
-                const helpUrl = browser.runtime.getURL("help.html");
-                browser.tabs.create({
+                const helpUrl = browserApi.runtime.getURL("help.html");
+                browserApi.tabs.create({
                     url: helpUrl,
                     active: true
                 }).catch((error) => {

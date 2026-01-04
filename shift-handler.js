@@ -1,4 +1,6 @@
-browser.runtime.onMessage.addListener(async (message) => {
+var browserApi = typeof browser !== 'undefined' ? browser : chrome;
+
+var shiftHandlerOnMessage = async (message) => {
     if (message.action === "heartbeat") {
         return { status: "alive" };
     }
@@ -123,7 +125,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                     const currentHtml = results ? results.innerHTML.trim() : "";
 
                     if (!results || !currentHtml) {
-                        setTimeout(checkForResult, 1000);
+                        setTimeout(checkForResult, 500);
                         return;
                     }
 
@@ -142,7 +144,7 @@ browser.runtime.onMessage.addListener(async (message) => {
                         setTimeout(checkForResult, 1000);
                     }
                 };
-                setTimeout(checkForResult, 1000);
+                checkForResult();
             });
 
             // If can't redeem, return the state immediately (no redirect happens)
@@ -207,13 +209,11 @@ browser.runtime.onMessage.addListener(async (message) => {
                 }
 
                 if (!platformButton) {
-                    console.warn(`${platform} redeem button not found - may not be available for this game`);
                     redemptionResults.push({ platform, success: false, error: "Platform not available" });
                     continue;
                 }
 
                 // Keep clicking the platform button until it's gone
-                console.info(`Redeeming for ${platform}...`);
                 let clickAttempts = 0;
                 let buttonFound = true;
                 
@@ -238,7 +238,6 @@ browser.runtime.onMessage.addListener(async (message) => {
                     }
 
                     if (!platformButton) {
-                        console.info(`${platform} button disappeared after ${clickAttempts} attempts - redemption complete`);
                         buttonFound = false;
                         break;
                     }
@@ -259,7 +258,6 @@ browser.runtime.onMessage.addListener(async (message) => {
             }
 
             // Step 6: All platforms processed - let popup handle the result checking
-            console.info("Platform redemptions completed:", redemptionResults);
             return { success: true, state: "submitted", platforms: redemptionResults };
 
         } catch (error) {
@@ -271,4 +269,24 @@ browser.runtime.onMessage.addListener(async (message) => {
             };
         }
     }
-});
+};
+
+if (!globalThis.__shiftHandlerListenerAdded) {
+    globalThis.__shiftHandlerListenerAdded = true;
+    browserApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        Promise.resolve(shiftHandlerOnMessage(message, sender))
+            .then((result) => {
+                sendResponse(result);
+            })
+            .catch((error) => {
+                sendResponse({
+                    success: false,
+                    state: "error",
+                    error: error?.message || String(error)
+                });
+            });
+
+        // Keep the response channel open for async work (required by Chrome).
+        return true;
+    });
+}
