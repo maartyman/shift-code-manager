@@ -26,6 +26,7 @@ The SHIFT Code Manager extension makes redeeming Borderlands SHIFT codes quick a
 
 ### From Browser Store (Recommended)
 - [Firefox Add-ons – Borderlands SHIFT Code Manager](https://addons.mozilla.org/en-US/firefox/addon/borderlands-shift-code-manager/)
+- [Chrome Web Store – Borderlands SHIFT Code Manager](https://chromewebstore.google.com/detail/cponiiooddmegpogkphdkngjhlhfkkaa)
 
 ### Manual Installation (Developer Mode)
 1. Download clone this repository
@@ -161,3 +162,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Happy Code Hunting, Vault Hunters!** 🗝️
+
+Support me:
+[buy me a coffee ☕](https://buymeacoffee.com/maartenvdbw)
