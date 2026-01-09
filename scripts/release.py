@@ -19,6 +19,7 @@ FIREFOX_MANIFEST = REPO_ROOT / "manifest.firefox.json"
 DEFAULT_MANIFEST = CHROME_MANIFEST
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 PACKAGE_JSON = REPO_ROOT / "package.json"
+PACKAGE_LOCK = REPO_ROOT / "package-lock.json"
 DIST_DIR = REPO_ROOT / "dist"
 PACKAGE_TEMPLATE = "shift-code-manager-{version}.zip"
 TEST_PACKAGE_SUFFIX = "test"
@@ -83,6 +84,19 @@ def _run_git(args: Sequence[str]) -> str:
     if result.returncode != 0:
         raise BuildError(result.stderr.strip() or f"git {' '.join(args)} failed")
     return result.stdout.strip()
+
+
+def _run_npm(args: Sequence[str]) -> None:
+    result = subprocess.run(
+        ["npm", *args],
+        cwd=REPO_ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise BuildError(result.stderr.strip() or f"npm {' '.join(args)} failed")
 
 
 def _ensure_git_repo() -> None:
@@ -399,6 +413,7 @@ def main() -> int:
         original_firefox_manifest_text = FIREFOX_MANIFEST.read_text(encoding="utf-8") if FIREFOX_MANIFEST.exists() else None
         original_changelog_text = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else None
         original_package_text = PACKAGE_JSON.read_text(encoding="utf-8") if PACKAGE_JSON.exists() else None
+        original_package_lock_text = PACKAGE_LOCK.read_text(encoding="utf-8") if PACKAGE_LOCK.exists() else None
         manifest["version"] = new_version
         _write_manifest(manifest_path, manifest)
         if original_firefox_manifest_text is not None:
@@ -412,6 +427,8 @@ def main() -> int:
                 raise BuildError(f"Unable to parse {PACKAGE_JSON}: {exc}") from exc
             package_data["version"] = new_version
             _write_package_json(PACKAGE_JSON, package_data)
+        if PACKAGE_LOCK.exists() and PACKAGE_JSON.exists():
+            _run_npm(["install", "--package-lock-only"])
         artifact_path: Optional[Path] = None
         commit_created = False
         tag_created = False
@@ -431,6 +448,8 @@ def main() -> int:
                 paths_to_commit.append(FIREFOX_MANIFEST)
             if PACKAGE_JSON.exists():
                 paths_to_commit.append(PACKAGE_JSON)
+            if PACKAGE_LOCK.exists():
+                paths_to_commit.append(PACKAGE_LOCK)
             _stage_and_commit(new_version, paths_to_commit)
             commit_created = True
             _create_tag(new_version)
@@ -455,6 +474,11 @@ def main() -> int:
                         PACKAGE_JSON.unlink()
                 else:
                     PACKAGE_JSON.write_text(original_package_text, encoding="utf-8")
+                if original_package_lock_text is None:
+                    if PACKAGE_LOCK.exists():
+                        PACKAGE_LOCK.unlink()
+                else:
+                    PACKAGE_LOCK.write_text(original_package_lock_text, encoding="utf-8")
                 try:
                     reset_paths = [
                         str(manifest_path.relative_to(REPO_ROOT)),
@@ -464,6 +488,8 @@ def main() -> int:
                         reset_paths.append(str(FIREFOX_MANIFEST.relative_to(REPO_ROOT)))
                     if PACKAGE_JSON.exists():
                         reset_paths.append(str(PACKAGE_JSON.relative_to(REPO_ROOT)))
+                    if PACKAGE_LOCK.exists():
+                        reset_paths.append(str(PACKAGE_LOCK.relative_to(REPO_ROOT)))
                     _run_git(["reset", "HEAD", *reset_paths])
                 except BuildError:
                     pass
