@@ -1,6 +1,7 @@
 const statusElement = document.getElementById("status");
 const gameSelect = document.getElementById("gameSelect");
 const platformSelect = document.getElementById("platformSelect");
+const skipCurrentButton = document.getElementById("skipCurrentButton");
 
 // Settings tab elements
 const settingsUrlList = document.getElementById("settingsUrlList");
@@ -26,10 +27,15 @@ const notifyTTWonderlands = document.getElementById("notifyTTWonderlands");
 
 const browserApi = typeof browser !== 'undefined' ? browser : chrome;
 const actionApi = browserApi.action || browserApi.browserAction;
+const REWARDS_URL = "https://shift.gearboxsoftware.com/rewards";
+const redemptionController = globalThis.RedeemRunner?.createRedemptionController
+    ? globalThis.RedeemRunner.createRedemptionController()
+    : null;
 
 // Redemption state tracking
 let isRedeeming = false;
-let shouldStopRedemption = false;
+let currentRedeemCode = null;
+let currentRedemptionTabId = null;
 
 // Helper function to reset redemption button state
 function resetRedeemButton() {
@@ -37,7 +43,44 @@ function resetRedeemButton() {
     redeemButton.textContent = "Redeem Codes";
     redeemButton.disabled = false;
     isRedeeming = false;
-    shouldStopRedemption = false;
+    currentRedeemCode = null;
+    currentRedemptionTabId = null;
+    redemptionController?.reset();
+    if (skipCurrentButton) {
+        skipCurrentButton.disabled = true;
+    }
+}
+
+async function refreshRedemptionTab() {
+    if (!currentRedemptionTabId) {
+        return;
+    }
+
+    try {
+        await browserApi.tabs.update(currentRedemptionTabId, { url: REWARDS_URL });
+    } catch (error) {
+        console.error("Error refreshing redemption tab:", error);
+    }
+}
+
+async function requestSkipCurrentCode() {
+    if (!isRedeeming || !currentRedeemCode) {
+        statusElement.textContent = "No code currently processing to skip.";
+        return;
+    }
+
+    statusElement.textContent = `Skipping ${currentRedeemCode}...`;
+    redemptionController?.requestSkip();
+
+    await refreshRedemptionTab();
+}
+
+if (skipCurrentButton) {
+    skipCurrentButton.addEventListener("click", () => {
+        requestSkipCurrentCode().catch((error) => {
+            console.error("Skip failed:", error);
+        });
+    });
 }
 
 async function injectContentScript(tabId, file) {
@@ -70,6 +113,21 @@ async function evaluateInTab(tabId, func) {
     }
 
     throw new Error('No available API to evaluate scripts');
+}
+
+// Function to check final redemption result by sending message to content script
+async function checkFinalResult(tabId, code) {
+    try {
+        const result = await browserApi.tabs.sendMessage(tabId, {
+            action: "checkFinalResult",
+            code: code
+        });
+
+        return result || { success: false, state: 'error', error: 'No result from content script' };
+    } catch (error) {
+        console.error(`Error checking final result for ${code}:`, error);
+        return { success: false, state: 'error', error: error.message };
+    }
 }
 
 // Helper function to check if user needs to log in
@@ -884,18 +942,24 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
     
     // If already redeeming, stop the process
     if (isRedeeming) {
-        shouldStopRedemption = true;
         redeemButton.textContent = "Stopping...";
         redeemButton.disabled = true;
+        if (skipCurrentButton) {
+            skipCurrentButton.disabled = true;
+        }
         statusElement.textContent = "Stopping redemption process...";
+        redemptionController?.requestStop();
+        await refreshRedemptionTab();
         return;
     }
     
     // Start redemption process
     isRedeeming = true;
-    shouldStopRedemption = false;
     redeemButton.textContent = "Stop Redeeming";
     statusElement.textContent = "Starting redemption process...";
+    if (skipCurrentButton) {
+        skipCurrentButton.disabled = false;
+    }
 
     // Get selected game and platform
     const game = gameSelect.value;
@@ -947,290 +1011,54 @@ document.getElementById("redeemCodesButton").addEventListener("click", async () 
         return;
     }
 
-    // Check if stop was requested during setup
-    if (shouldStopRedemption) {
-        statusElement.textContent = "Redemption stopped by user";
-        resetRedeemButton();
-        return;
-    }
-
     try {
-        const waitForReloadAndInject = async () => {
-            await new Promise((resolve) => {
-                const listener = (tabId, changeInfo) => {
-                    if (tabId === tab.id && changeInfo.status === "complete") {
-                        browserApi.tabs.onUpdated.removeListener(listener);
-                        resolve();
-                    }
-                };
-                browserApi.tabs.onUpdated.addListener(listener);
-            });
-
-            const response = await browserApi.tabs.sendMessage(tab.id, {
-                action: "heartbeat"
-            });
-            if (response && response.status === "alive") {
-                return;
-            }
-            await injectContentScript(tab.id, "shift-handler.js");
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        };
-
-        // Function to check final redemption result by sending message to content script
-        const checkFinalResult = async (tabId, code) => {
-            try {
-                // Send message to content script to check the page content
-                const result = await browserApi.tabs.sendMessage(tabId, {
-                    action: "checkFinalResult",
-                    code: code
-                });
-                
-                return result || { success: false, state: 'error', error: 'No result from content script' };
-                
-            } catch (error) {
-                console.error(`Error checking final result for ${code}:`, error);
-                return { success: false, state: 'error', error: error.message };
-            }
-        };
-
-        const processCode = async (code, retryCount = 0) => {
-            // Set code as being checked
-            await setCodeState(code, CODE_STATES.CHECKING, game, platform);
-
-            try {
-                // Send message to the injected content script to start redemption
-                
-                let redemptionResult = null;
-                try {
-                    // Try to get a response - this will work for error cases (expired/invalid/already redeemed)
-                    // but will fail for successful redemptions due to page redirect
-                    redemptionResult = await browserApi.tabs.sendMessage(tab.id, {
-                        action: "redeemCode",
-                        code: code,
-                        game: game,
-                        platforms: [platform], // Single platform array
-                        maxRetries: 0,
-                        currentRetry: retryCount
-                    });
-                } catch (messageError) {
-                    // No immediate response (likely successful redemption with redirect)
-                }
-                
-                // If we got an immediate error response (expired/invalid/already redeemed), handle it
-                if (redemptionResult && !redemptionResult.success && redemptionResult.state !== 'submitted') {
-                    if (redemptionResult.state === 'checked') {
-                        await setCodeState(code, CODE_STATES.VALIDATED, game, platform);
-                        return { success: true, state: 'validated', alreadyRedeemed: true };
-                    } else if (redemptionResult.state === 'expired') {
-                        await setCodeState(code, CODE_STATES.EXPIRED, game, platform);
-                        return { success: false, state: 'expired' };
-                    } else if (redemptionResult.state === 'invalid') {
-                        await setCodeState(code, CODE_STATES.INVALID, game, platform);
-                        return { success: false, state: 'invalid' };
-                    } else {
-                        await setCodeState(code, CODE_STATES.ERROR, game, platform);
-                        return { success: false, state: 'error', error: redemptionResult.error };
-                    }
-                }
-                
-                // Re-inject content script after redirect
-                await waitForReloadAndInject();
-                
-                // Wait 500ms before checking the response
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Now check the final result on the page
-                const finalResult = await checkFinalResult(tab.id, code);
-                
-                if (finalResult.state === 'redeemed') {
-                    await setCodeState(code, CODE_STATES.REDEEMED, game, platform);
-                    return { success: true, state: 'redeemed' };
-                } else if (finalResult.state === 'checked') {
-                    await setCodeState(code, CODE_STATES.VALIDATED, game, platform);
-                    return { success: true, state: 'validated', alreadyRedeemed: true };
-                } else if (finalResult.state === 'expired') {
-                    await setCodeState(code, CODE_STATES.EXPIRED, game, platform);
-                    return { success: false, state: 'expired' };
-                } else if (finalResult.state === 'invalid') {
-                    await setCodeState(code, CODE_STATES.INVALID, game, platform);
-                    return { success: false, state: 'invalid' };
-                } else {
-                    await setCodeState(code, CODE_STATES.ERROR, game, platform);
-                    return { success: false, state: 'error', error: finalResult.error || 'Unknown error' };
-                }
-
-            } catch (error) {
-                console.error(`Error processing code ${code}:`, error);
-                await setCodeState(code, CODE_STATES.ERROR, game, platform);
-                return { success: false, state: 'error', error: error.message };
-            }
-        };
-
-        const url = "https://shift.gearboxsoftware.com/rewards";
-
-        let tab = (await browserApi.tabs.query({ url: url })).pop();
-        if (!tab) {
-            tab = await browserApi.tabs.create({ url: url });
-        }
-
-        await browserApi.tabs.update(tab.id, { url: url });
-        await waitForReloadAndInject();
-
-        // Check if user needs to log in
-        const tabInfo = await browserApi.tabs.get(tab.id);
-        if (isLoginRequired(tabInfo.url)) {
-            statusElement.textContent = "Not logged in! Please log in to SHIFT in the opened tab and try again";
+        if (!globalThis.RedeemRunner?.createRedeemRunner || !redemptionController) {
+            statusElement.textContent = "Redeem runner not available.";
             resetRedeemButton();
             return;
         }
 
-        let totalProcessed = 0;
-        let redeemedCount = 0;
-        let finalErrorCount = 0;
-        let codeQueue = [...codesToProcess];
-        let erroredCodes = [];
-        let retryRound = 0;
-        const maxRetryRounds = 3;
+        const redeemRunner = globalThis.RedeemRunner.createRedeemRunner({
+            browserApi,
+            injectContentScript,
+            evaluateInTab,
+            checkFinalResult,
+            isLoginRequired,
+            setCodeState,
+            updateCodeOverview,
+            incrementRetryCount,
+            states: CODE_STATES
+        });
 
-        // Main processing loop
-        while (codeQueue.length > 0 && retryRound <= maxRetryRounds && !shouldStopRedemption) {
-            if (retryRound > 0) {
-                statusElement.textContent = `Retry round ${retryRound}/${maxRetryRounds} - ${codeQueue.length} codes remaining`;
-                console.info(`Starting retry round ${retryRound} with ${codeQueue.length} codes`);
-                
-                // Update code overview at start of retry round
-                await updateCodeOverview();
-                
-                // Use configurable retry delay
-                const retryDelay = timingSettings.retryDelay * 1000 + (retryRound * 5000);
-                statusElement.textContent = `Waiting ${retryDelay/1000}s before retry round ${retryRound}...`;
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-                
-                // Reload page before retry round
-                await browserApi.tabs.update(tab.id, { url: url });
-                await waitForReloadAndInject();
-                await new Promise(resolve => setTimeout(resolve, 3000)); // Longer page load wait
-                
-                // Check if user needs to log in after page reload
-                const tabInfo = await browserApi.tabs.get(tab.id);
-                if (isLoginRequired(tabInfo.url)) {
-                    statusElement.textContent = "Session expired! Please log in to SHIFT in the opened tab and try again";
-                    resetRedeemButton();
-                    return;
-                }
-            }
+        redemptionController.reset();
 
-            const currentBatch = [...codeQueue];
-            codeQueue = [];
-            erroredCodes = [];
+        const result = await redeemRunner.run({
+            codesToProcess,
+            game,
+            platform,
+            timingSettings,
+            controller: redemptionController,
+            setStatus: (text) => {
+                statusElement.textContent = text;
+            },
+            onCodeStart: (code) => {
+                currentRedeemCode = code;
+            },
+            onCodeComplete: () => {
+                currentRedeemCode = null;
+            },
+            onTabReady: (tab) => {
+                currentRedemptionTabId = tab?.id || null;
+            },
+            rewardsUrl: REWARDS_URL
+        });
 
-            for (let i = 0; i < currentBatch.length; i++) {
-                // Check if user wants to stop redemption
-                if (shouldStopRedemption) {
-                    console.info("Redemption process stopped by user");
-                    statusElement.textContent = "Redemption stopped by user";
-                    resetRedeemButton();
-                    return;
-                }
-                
-                const { code } = currentBatch[i];
-                totalProcessed++;
-                
-                statusElement.textContent = `Round ${retryRound + 1}: Processing ${i + 1}/${currentBatch.length}: ${code}`;
-                
-                const result = await processCode(code, retryRound);
-                
-                if (result.success || result.state === 'validated' || result.state === 'redeemed' || result.state === 'checked') {
-                    const statusMsg = result.validated ? 'Redeemed and validated' : 
-                                     result.alreadyRedeemed ? 'Already redeemed (validated)' : 
-                                     result.state === 'validated' ? 'Validated' :
-                                     result.state === 'checked' ? 'Already redeemed (checked)' :
-                                     'Redeemed successfully';
-                    redeemedCount++;
-                    // Update code overview immediately after successful redemption
-                    await updateCodeOverview();
-                } else if (result.state === 'error' && retryRound < maxRetryRounds) {
-                    console.warn(`✗ Error with ${code}, will retry in next round`);
-                    erroredCodes.push({ code, state: result });
-                    await incrementRetryCount(code, game);
-                    // Update code overview even for errors that will be retried
-                    await updateCodeOverview();
-                } else {
-                    console.warn(`✗ Final result for ${code}: ${result.state} - ${result.error}`);
-                    if (result.state === 'error') {
-                        finalErrorCount++;
-                    }
-                    // Update code overview for ALL final states (including errors)
-                    await updateCodeOverview();
-                }
-
-                // Safety net: Always update overview after each code processing
-                // This ensures overview is updated even if we missed a case above
-                try {
-                    await updateCodeOverview();
-                } catch (overviewError) {
-                    console.error('Error updating overview:', overviewError);
-                }
-
-                // Use configurable delay between codes (longer if we did validation)
-                if (i < currentBatch.length - 1) {
-                    const baseDelay = timingSettings.codeDelay * 1000;
-                    const extraDelayForValidation = (result.validated) ? 2000 : 0; // Extra 2s if we validated
-                    const delay = retryRound === 0 ? baseDelay + extraDelayForValidation : baseDelay + extraDelayForValidation + (retryRound * 2000);
-                    statusElement.textContent = `Round ${retryRound + 1}: Waiting ${delay/1000}s before next code...`;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-
-                // Check for rate limiting message
-                try {
-                    const message = await evaluateInTab(tab.id, () => {
-                        const notice = document.getElementsByClassName("alert notice")[0];
-                        return notice ? notice.innerHTML : null;
-                    });
-
-                    if (message && message.includes("To continue to redeem SHiFT codes, please launch a SHiFT-enabled title first!")) {
-                        statusElement.textContent = "Rate limited - please launch a SHiFT-enabled game first!";
-                        // Exit all loops
-                        codeQueue = [];
-                        erroredCodes = [];
-                        retryRound = maxRetryRounds + 1;
-                        break;
-                    }
-                } catch (e) {
-                    // Ignore script execution errors
-                }
-            }
-
-            // Prepare for next retry round
-            if (erroredCodes.length > 0 && retryRound < maxRetryRounds) {
-                codeQueue = erroredCodes;
-                retryRound++;
-            } else {
-                break;
-            }
-        }
-
-        // Check if process was stopped by user
-        if (shouldStopRedemption) {
-            statusElement.textContent = "Redemption process stopped by user";
+        if (result?.state === "stopped" || result?.state === "login_required") {
             resetRedeemButton();
             return;
         }
-
-        // Final status update
-        const expiredCount = totalProcessed - redeemedCount - finalErrorCount;
-        statusElement.textContent = `Completed! Redeemed: ${redeemedCount}, Errors: ${finalErrorCount}, Other: ${expiredCount}, Total: ${totalProcessed}`;
-        
-        // Update storage to remove codes that are successfully processed for the current platform
-        // Don't modify the original gameNewCodes storage since it should be shared across platforms
-        // Individual code states are tracked per platform:game:code, so we don't need to remove codes
 
         console.info(`Redemption process completed for ${platform} on ${game}.`);
-        
-        // Update code overview after redemption process
-        await updateCodeOverview();
-        
-        // Reset button state
         resetRedeemButton();
 
     } catch (error) {

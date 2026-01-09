@@ -257,6 +257,17 @@ var shiftHandlerOnMessage = async (message) => {
                 redemptionResults.push({ platform, success: true, attempts: clickAttempts });
             }
 
+            const anyPlatformSucceeded = redemptionResults.some(result => result.success);
+
+            if (!anyPlatformSucceeded) {
+                return {
+                    success: false,
+                    state: "invalid",
+                    error: "Platform not available",
+                    platforms: redemptionResults
+                };
+            }
+
             // Step 6: All platforms processed - let popup handle the result checking
             return { success: true, state: "submitted", platforms: redemptionResults };
 

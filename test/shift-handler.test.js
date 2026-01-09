@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadSavedDom } = require('./utils/loadSavedDom');
+const { createRedeemRunner, createRedemptionController } = require('../redeem-runner');
 
 const PLATFORM_LABELS = {
   steam: ['steam'],
@@ -20,11 +21,34 @@ function getBackgroundListener() {
   return listener;
 }
 
+function callListener(listener, message) {
+  return new Promise((resolve, reject) => {
+    let resolved = false;
+    const sendResponse = (payload) => {
+      resolved = true;
+      resolve(payload);
+    };
+
+    try {
+      const result = listener(message, undefined, sendResponse);
+      if (!resolved && result !== true && result !== undefined) {
+        resolved = true;
+        resolve(result);
+      }
+    } catch (error) {
+      if (!resolved) {
+        reject(error);
+      }
+    }
+  });
+}
+
 function loadHandler() {
   jest.isolateModules(() => {
     require(path.join('..', 'shift-handler.js'));
   });
-  return getBackgroundListener();
+  const listener = getBackgroundListener();
+  return (message) => callListener(listener, message);
 }
 
 function setupFormMocking() {
@@ -100,6 +124,52 @@ async function flushAllTimers() {
   if (jest.getTimerCount() > 0) {
     throw new Error('Timers did not settle');
   }
+}
+
+function createTestDeps(overrides = {}) {
+  const codeStates = {};
+
+  const deps = {
+    browserApi: {
+      tabs: {
+        query: jest.fn().mockResolvedValue([{ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }]),
+        create: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+        update: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+        get: jest.fn().mockResolvedValue({ url: 'https://shift.gearboxsoftware.com/rewards' }),
+        sendMessage: jest.fn(),
+        onUpdated: {
+          addListener: jest.fn((listener) => listener(1, { status: 'complete' })),
+          removeListener: jest.fn(),
+          hasListener: jest.fn()
+        }
+      }
+    },
+    injectContentScript: jest.fn().mockResolvedValue(),
+    evaluateInTab: jest.fn().mockResolvedValue(null),
+    checkFinalResult: jest.fn().mockResolvedValue({ success: false, state: 'invalid' }),
+    isLoginRequired: jest.fn().mockReturnValue(false),
+    setCodeState: jest.fn(async (code, state, game, platform) => {
+      const key = `${platform}:${game}:${code}`;
+      codeStates[key] = state;
+    }),
+    updateCodeOverview: jest.fn().mockResolvedValue(),
+    incrementRetryCount: jest.fn().mockResolvedValue(),
+    sleep: jest.fn().mockResolvedValue(),
+    states: {
+      NEW: 'new',
+      CHECKING: 'checking',
+      EXPIRED: 'expired',
+      INVALID: 'invalid',
+      REDEEMED: 'redeemed',
+      VALIDATED: 'validated',
+      ERROR: 'error',
+      TO_BE_REDEEMED: 'to_be_redeemed',
+      CHECKED: 'checked'
+    },
+    __codeStates: codeStates
+  };
+
+  return { ...deps, ...overrides };
 }
 
 describe('shift-handler message listener', () => {
@@ -228,8 +298,7 @@ describe('shift-handler message listener', () => {
       observer.disconnect();
     });
 
-    test('gracefully skips requested platform unavailable for Borderlands 2', async () => {
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    test('returns invalid when requested platform is unavailable for Borderlands 2', async () => {
       loadSavedDom('borderlands2_psn_only');
       simulateResultUpdate();
 
@@ -247,17 +316,15 @@ describe('shift-handler message listener', () => {
       await flushAllTimers();
       const response = await redeemPromise;
 
-      if (!response.success) {
-        const stack = errorSpy.mock.calls[0]?.[1]?.stack;
-        const suffix = stack ? `\n${stack}` : '';
-        throw new Error(`borderlands2_psn_only response ${JSON.stringify(response)}${suffix}`);
-      }
-
       expect(response).toEqual({
-        success: true,
-        state: 'submitted',
+        success: false,
+        state: 'invalid',
+        error: 'Platform not available',
         platforms: [{ platform: 'steam', success: false, error: 'Platform not available' }]
       });
+
+      const psnForms = capturedForms.filter(f => f.platform === 'psn');
+      expect(psnForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(false);
       
       observer.disconnect();
     });
@@ -519,5 +586,141 @@ describe('shift-handler message listener', () => {
       expect(response.success).toBe(false);
       expect(response.state).toBe('invalid');
     });
+  });
+
+});
+
+describe('redeem-runner', () => {
+  test('skip marks current code invalid and continues to next code', async () => {
+    const controller = createRedemptionController();
+    let rejectPending = null;
+    let redeemStartedResolve = null;
+
+    const redeemStarted = new Promise((resolve) => {
+      redeemStartedResolve = resolve;
+    });
+
+    const deps = createTestDeps({
+      browserApi: {
+        tabs: {
+          query: jest.fn().mockResolvedValue([{ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }]),
+          create: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+          update: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+          get: jest.fn().mockResolvedValue({ url: 'https://shift.gearboxsoftware.com/rewards' }),
+          onUpdated: {
+            addListener: jest.fn((listener) => listener(1, { status: 'complete' })),
+            removeListener: jest.fn(),
+            hasListener: jest.fn()
+          },
+          sendMessage: jest.fn((tabId, message) => {
+            if (message?.action === 'heartbeat') {
+              return Promise.resolve({ status: 'alive' });
+            }
+            if (message?.action === 'redeemCode') {
+              if (message.code === 'SKIP-ME') {
+                redeemStartedResolve();
+                return new Promise((_, reject) => {
+                  rejectPending = reject;
+                });
+              }
+              return Promise.resolve({ success: false, state: 'invalid' });
+            }
+            if (message?.action === 'checkFinalResult') {
+              return Promise.resolve({ success: false, state: 'invalid' });
+            }
+            return Promise.resolve();
+          })
+        }
+      }
+    });
+
+    const runner = createRedeemRunner(deps);
+
+    const runPromise = runner.run({
+      codesToProcess: [{ code: 'SKIP-ME' }, { code: 'NEXT-CODE' }],
+      game: 'borderlands2',
+      platform: 'steam',
+      timingSettings: { codeDelay: 0, retryDelay: 0 },
+      controller,
+      setStatus: jest.fn()
+    });
+
+    await redeemStarted;
+    controller.requestSkip();
+    rejectPending(new Error('Tab reloaded'));
+
+    await runPromise;
+
+    expect(deps.__codeStates['steam:borderlands2:SKIP-ME']).toBe('invalid');
+    const redeemCalls = deps.browserApi.tabs.sendMessage.mock.calls
+      .filter(([, message]) => message?.action === 'redeemCode');
+    expect(redeemCalls.some(([, message]) => message.code === 'NEXT-CODE')).toBe(true);
+  });
+
+  test('stop resets current code to new and exits early', async () => {
+    const controller = createRedemptionController();
+    let rejectPending = null;
+    let redeemStartedResolve = null;
+
+    const redeemStarted = new Promise((resolve) => {
+      redeemStartedResolve = resolve;
+    });
+
+    const deps = createTestDeps({
+      browserApi: {
+        tabs: {
+          query: jest.fn().mockResolvedValue([{ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }]),
+          create: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+          update: jest.fn().mockResolvedValue({ id: 1, url: 'https://shift.gearboxsoftware.com/rewards' }),
+          get: jest.fn().mockResolvedValue({ url: 'https://shift.gearboxsoftware.com/rewards' }),
+          onUpdated: {
+            addListener: jest.fn((listener) => listener(1, { status: 'complete' })),
+            removeListener: jest.fn(),
+            hasListener: jest.fn()
+          },
+          sendMessage: jest.fn((tabId, message) => {
+            if (message?.action === 'heartbeat') {
+              return Promise.resolve({ status: 'alive' });
+            }
+            if (message?.action === 'redeemCode') {
+              if (message.code === 'STOP-ME') {
+                redeemStartedResolve();
+                return new Promise((_, reject) => {
+                  rejectPending = reject;
+                });
+              }
+              return Promise.resolve({ success: false, state: 'invalid' });
+            }
+            if (message?.action === 'checkFinalResult') {
+              return Promise.resolve({ success: false, state: 'invalid' });
+            }
+            return Promise.resolve();
+          })
+        }
+      }
+    });
+
+    const runner = createRedeemRunner(deps);
+
+    const runPromise = runner.run({
+      codesToProcess: [{ code: 'STOP-ME' }, { code: 'NEXT-CODE' }],
+      game: 'borderlands2',
+      platform: 'steam',
+      timingSettings: { codeDelay: 0, retryDelay: 0 },
+      controller,
+      setStatus: jest.fn()
+    });
+
+    await redeemStarted;
+    controller.requestStop();
+    rejectPending(new Error('Tab reloaded'));
+
+    const result = await runPromise;
+
+    expect(result.state).toBe('stopped');
+    expect(deps.__codeStates['steam:borderlands2:STOP-ME']).toBe('new');
+    const redeemCalls = deps.browserApi.tabs.sendMessage.mock.calls
+      .filter(([, message]) => message?.action === 'redeemCode');
+    expect(redeemCalls.some(([, message]) => message.code === 'NEXT-CODE')).toBe(false);
   });
 });
