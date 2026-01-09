@@ -18,6 +18,7 @@ CHROME_MANIFEST = REPO_ROOT / "manifest.chrome.json"
 FIREFOX_MANIFEST = REPO_ROOT / "manifest.firefox.json"
 DEFAULT_MANIFEST = CHROME_MANIFEST
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
+PACKAGE_JSON = REPO_ROOT / "package.json"
 DIST_DIR = REPO_ROOT / "dist"
 PACKAGE_TEMPLATE = "shift-code-manager-{version}.zip"
 TEST_PACKAGE_SUFFIX = "test"
@@ -106,6 +107,10 @@ def _load_manifest(path: Path) -> dict:
 
 def _write_manifest(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=4) + "\n", encoding="utf-8")
+
+
+def _write_package_json(path: Path, data: dict) -> None:
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def _validate_version(version: str) -> None:
@@ -393,12 +398,20 @@ def main() -> int:
         original_manifest_text = manifest_path.read_text(encoding="utf-8")
         original_firefox_manifest_text = FIREFOX_MANIFEST.read_text(encoding="utf-8") if FIREFOX_MANIFEST.exists() else None
         original_changelog_text = CHANGELOG_PATH.read_text(encoding="utf-8") if CHANGELOG_PATH.exists() else None
+        original_package_text = PACKAGE_JSON.read_text(encoding="utf-8") if PACKAGE_JSON.exists() else None
         manifest["version"] = new_version
         _write_manifest(manifest_path, manifest)
         if original_firefox_manifest_text is not None:
             firefox_manifest = _load_manifest(FIREFOX_MANIFEST)
             firefox_manifest["version"] = new_version
             _write_manifest(FIREFOX_MANIFEST, firefox_manifest)
+        if PACKAGE_JSON.exists():
+            try:
+                package_data = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise BuildError(f"Unable to parse {PACKAGE_JSON}: {exc}") from exc
+            package_data["version"] = new_version
+            _write_package_json(PACKAGE_JSON, package_data)
         artifact_path: Optional[Path] = None
         commit_created = False
         tag_created = False
@@ -416,6 +429,8 @@ def main() -> int:
             paths_to_commit = [manifest_path, CHANGELOG_PATH]
             if FIREFOX_MANIFEST.exists():
                 paths_to_commit.append(FIREFOX_MANIFEST)
+            if PACKAGE_JSON.exists():
+                paths_to_commit.append(PACKAGE_JSON)
             _stage_and_commit(new_version, paths_to_commit)
             commit_created = True
             _create_tag(new_version)
@@ -435,6 +450,11 @@ def main() -> int:
                         CHANGELOG_PATH.unlink()
                 else:
                     CHANGELOG_PATH.write_text(original_changelog_text, encoding="utf-8")
+                if original_package_text is None:
+                    if PACKAGE_JSON.exists():
+                        PACKAGE_JSON.unlink()
+                else:
+                    PACKAGE_JSON.write_text(original_package_text, encoding="utf-8")
                 try:
                     reset_paths = [
                         str(manifest_path.relative_to(REPO_ROOT)),
@@ -442,6 +462,8 @@ def main() -> int:
                     ]
                     if FIREFOX_MANIFEST.exists():
                         reset_paths.append(str(FIREFOX_MANIFEST.relative_to(REPO_ROOT)))
+                    if PACKAGE_JSON.exists():
+                        reset_paths.append(str(PACKAGE_JSON.relative_to(REPO_ROOT)))
                     _run_git(["reset", "HEAD", *reset_paths])
                 except BuildError:
                     pass

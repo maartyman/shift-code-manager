@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3 - 2026-01-04
+
+### Features
+- Chrome port (33ef914)
+
+### Fixes
+- _
+
+### Chore
+- Make sure package.json version is updated (deb07e4)
+
+### Other
+- _
+
 ## 1.2 - 2026-01-02
 
 ### Features
@@ -8,16 +22,17 @@
 ### Fixes
 - Fix hanging of extension (26749a6)
 - Fix settings saving + keep platform between sessions (ac2b7af)
-
-### Chore
-- Add release script (71d3308)
-
-### Other
 - Invalid code fix (136b8ea)
 - Fixed codes in test server (b2df69a)
 - Minor visual fixes (27ca030)
-- Update icons (6475cb8)
 - Add test suite and fix known bugs (3420c5a)
+
+### Chore
+- Release v1.2 (f750f6e)
+- Add release script (71d3308)
+
+### Other
+- Update icons (6475cb8)
 - New icons (32b21f6)
 - Change icon (18194ce)
 
