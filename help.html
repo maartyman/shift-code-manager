@@ -7,7 +7,7 @@
     body {
       max-width: 800px;
       min-width: 600px;
-      width: 70vw;
+      width: 80vw;
       padding: 20px;
       font-family: Arial, sans-serif;
       margin: 0 auto;
@@ -141,6 +141,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      text-decoration: none;
     }
     
     .back-button:hover {
@@ -201,20 +202,6 @@
         margin: 0;
         border-radius: 0;
         box-shadow: none;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .container {
-        padding: 15px;
-      }
-      
-      h1 {
-        font-size: 20px;
-      }
-      
-      h2 {
-        font-size: 16px;
       }
     }
 
@@ -320,217 +307,72 @@
   <div class="step">
     <span class="step-number">1</span>
     <strong>Select Your Game & Platform</strong><br>
-    Choose your Borderlands game and preferred platform from the dropdowns in the Selection section.
+    Choose your Borderlands game and preferred platform from the dropdowns in the Main tab.
     <div class="platform-grid">
       <div class="platform-item">Steam</div>
-      <div class="platform-item">Xbox Live</div>
-      <div class="platform-item">Nintendo</div>
-      <div class="platform-item">Epic Games</div>
       <div class="platform-item">PlayStation</div>
+      <div class="platform-item">Xbox Live</div>
+      <div class="platform-item">Epic Games</div>
+      <div class="platform-item">Nintendo</div>
       <div class="platform-item">Stadia</div>
     </div>
+    <p>Supports: <strong>Borderlands 4</strong>, <strong>Wonderlands</strong>, <strong>Borderlands 3</strong>, <strong>The Pre-Sequel</strong>, <strong>Borderlands 2</strong>, and <strong>GOTY Edition</strong>.</p>
   </div>
 
   <div class="step">
     <span class="step-number">2</span>
     <strong>Fetch New Codes</strong><br>
-    Click "Fetch New Codes" to automatically search for the latest SHIFT codes from reliable sources. The extension will show you how many new codes were found.
+    Click "Fetch codes" to automatically search for the latest SHIFT codes from reliable sources.
   </div>
 
   <div class="step">
     <span class="step-number">3</span>
     <strong>Log Into SHIFT Website</strong><br>
-    Before redeeming codes, make sure you're logged into <a href="https://shift.gearboxsoftware.com" target="_blank">shift.gearboxsoftware.com</a> in the same browser.
+    Ensure you are logged into <a href="https://shift.gearboxsoftware.com" target="_blank">shift.gearboxsoftware.com</a> in the same browser session.
   </div>
 
   <div class="step">
     <span class="step-number">4</span>
-    <strong>Redeem Your Codes</strong><br>
-    Click "Redeem Codes" to automatically submit all new codes on the SHIFT website. The extension will handle everything automatically!
+    <strong>Redeem Codes</strong><br>
+    Click "Redeem Codes" to automatically submit all new codes. The extension will handle the process, waiting between codes to respect rate limits.
   </div>
 
-  <h2>📊 Understanding Code States</h2>
+  <h2>🔔 Notifications & Settings</h2>
 
-  <div class="info">
-    <div class="info-title">Code Overview</div>
-    The Code Overview section shows different states:
+  <div class="step">
+    <span class="step-number">⚙️</span>
+    <strong>Settings Tab</strong><br>
     <ul>
-      <li><strong>New:</strong> Fresh codes ready to be redeemed</li>
-      <li><strong>Redeemed:</strong> Successfully redeemed codes</li>
-      <li><strong>Validated:</strong> Codes confirmed as already redeemed</li>
-      <li><strong>Expired:</strong> Codes that are no longer valid</li>
-      <li><strong>Errors:</strong> Codes that encountered issues</li>
+      <li><strong>Custom URLs:</strong> Manage sources for code scraping</li>
+      <li><strong>Timing Settings:</strong> Modify delays and intervals for code fetching and redemption</li>
+      <li><strong>Dark Mode:</strong> Toggle the visual theme</li>
+      <li><strong>Notifications:</strong> Manage notification preferences and source polling frequency</li>
+      <li><strong>Settings Backup:</strong> Manage backup and restore of your settings</li>
+      <li><strong>Diagnostics:</strong> View and manage the history of all processed codes</li>
     </ul>
   </div>
-
-  <h2>🔔 Notifications Setup</h2>
-
-  <div class="step">
-    <span class="step-number">1</span>
-    <strong>Enable Notifications</strong><br>
-    In the Settings tab, toggle the "Notifications" switch to enable automatic code checking.
-  </div>
-
-  <div class="step">
-    <span class="step-number">2</span>
-    <strong>Choose Games</strong><br>
-    Select which Borderlands games you want to be notified about when new codes are available.
-  </div>
-
-  <div class="step">
-    <span class="step-number">3</span>
-    <strong>Set Check Frequency</strong><br>
-    Configure how often to check for new codes:
-    <ul>
-      <li><strong>Minutes:</strong> For testing or urgent monitoring</li>
-      <li><strong>Hours:</strong> For frequent but reasonable checking</li>
-      <li><strong>Days:</strong> Recommended for normal daily use</li>
-    </ul>
-  </div>
-
-  <h2>⚙️ Settings Explained</h2>
-
-  <h3>Timing Settings</h3>
-  <ul>
-    <li><strong>Code Delay:</strong> Time to wait between redeeming individual codes. The SHIFT website rate limits requests, so we wait a few seconds between each code redemption to avoid being blocked. 6 seconds is recommended.</li>
-    <li><strong>Retry Delay:</strong> Time to wait before retrying failed redemptions</li>
-  </ul>
-
-  <h3>Code Sources</h3>
-  <ul>
-    <li>Pre-configured reliable websites that publish SHIFT codes</li>
-    <li>Add custom URLs if you know other good sources</li>
-    <li>Different games can have different sources</li>
-    <li><strong>Important:</strong> To update sources for a specific game, first select that game in the Main tab, then go to Settings</li>
-  </ul>
-
-  <h3>Settings Backup</h3>
-  <ul>
-    <li><strong>Export:</strong> Download your settings and code history</li>
-    <li><strong>Import:</strong> Restore settings from a backup file</li>
-  </ul>
 
   <h2>🔧 Troubleshooting</h2>
 
   <div class="troubleshoot">
-    <div class="troubleshoot-title">Codes Not Redeeming?</div>
+    <div class="troubleshoot-title">Common Issues</div>
     <ul>
-      <li>Make sure you're logged into shift.gearboxsoftware.com</li>
-      <li>Check if codes are already redeemed or expired</li>
-      <li>Try switching platforms (Steam, Epic, etc.)</li>
-      <li>Disable other browser extensions temporarily</li>
-      <li>Clear browser cache and cookies for SHIFT website</li>
+      <li><strong>Login Required:</strong> If redemption fails, check that you are still logged into the SHIFT website.</li>
+      <li><strong>Rate Limiting:</strong> Use the "Code Delay" setting (default 5s) to prevent blocking.</li>
+      <li><strong>Missing Elements:</strong> If the extension looks wrong, try reloading the extension or clearing browser cache.</li>
     </ul>
-  </div>
-
-  <div class="troubleshoot">
-    <div class="troubleshoot-title">Notifications Not Working?</div>
-    <ul>
-      <li>Check browser notification permissions</li>
-      <li>Ensure notifications are enabled in extension settings</li>
-      <li>Try shorter check intervals for testing</li>
-      <li>Verify notification settings in browser preferences</li>
-    </ul>
-  </div>
-
-  <div class="troubleshoot">
-    <div class="troubleshoot-title">Extension Not Loading?</div>
-    <ul>
-      <li>Refresh the browser page</li>
-      <li>Check for browser updates</li>
-      <li>Try disabling other extensions</li>
-      <li>Reinstall the extension if necessary</li>
-    </ul>
-  </div>
-
-  <h2>⚠️ Important Notes</h2>
-
-  <div class="warning">
-    <div class="warning-title">Rate Limiting</div>
-    The extension automatically waits between code redemptions because the SHIFT website will stop accepting codes if they're submitted too quickly. A 6-second delay between codes is recommended to avoid being temporarily blocked.<br><br>
   </div>
 
   <div class="warning">
-    <div class="warning-title">Login Required</div>
-    You must be logged into your SHIFT account on shift.gearboxsoftware.com before using the redemption feature. The extension cannot log you in automatically.
+    <div class="warning-title">Important Note</div>
+    This extension runs locally on your machine. No data is sent to external servers other than the configured code sources and the official SHIFT website.
   </div>
 
-  <div class="info">
-    <div class="info-title">Privacy & Security</div>
-    <ul class="feature-list">
-      <li>All data stored locally in your browser</li>
-      <li>No external servers or data collection</li>
-      <li>Open source code - audit it yourself</li>
-      <li>Only requests necessary permissions</li>
-    </ul>
+  <h2>📞 Need Help?</h2>
+  <p>Check the <a href="https://github.com/maartyman/shift-code-manager" target="_blank">GitHub repository</a> for updates, bug reports, and more info.</p>
+
   </div>
 
-  <h2>📞 Need More Help?</h2>
-
-  <p>If you're still having issues:</p>
-  <ul>
-    <li>Check the <a href="https://github.com/maartyman/shift-code-manager" target="_blank">GitHub repository</a> for updates</li>
-    <li>Report bugs or request features via GitHub Issues</li>
-    <li>Check community discussions for tips and solutions</li>
-  </ul>
-
-  <div class="info">
-    <div class="info-title">Happy Code Hunting!</div>
-    This extension is designed to make SHIFT code redemption as easy as possible. With automatic fetching, intelligent notifications, and multi-platform support, you'll never miss another golden key or cosmetic reward!
-  </div>
-  </div>
-
-  <script>
-    (function() {
-      function getExtensionApi() {
-        if (typeof browser !== 'undefined' && browser.storage && browser.storage.local) {
-          return browser;
-        }
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          return chrome;
-        }
-        return null;
-      }
-
-      function applyDarkMode(isEnabled) {
-        document.body.classList.toggle('dark-mode', Boolean(isEnabled));
-      }
-
-      const api = getExtensionApi();
-      if (!api) {
-        return;
-      }
-
-      const handleSettings = (result) => {
-        try {
-          const settings = result && result.appearanceSettings ? result.appearanceSettings : { darkMode: false };
-          applyDarkMode(settings.darkMode);
-        } catch (error) {
-          console.error('Failed to apply appearance settings:', error);
-        }
-      };
-
-      try {
-        const maybePromise = api.storage.local.get(['appearanceSettings']);
-        if (maybePromise && typeof maybePromise.then === 'function') {
-          maybePromise.then(handleSettings).catch((error) => {
-            console.error('Error loading appearance settings:', error);
-          });
-        } else {
-          api.storage.local.get(['appearanceSettings'], handleSettings);
-        }
-      } catch (error) {
-        api.storage.local.get(['appearanceSettings'], handleSettings);
-      }
-
-      if (api.storage && api.storage.onChanged && api.storage.onChanged.addListener) {
-        api.storage.onChanged.addListener((changes, areaName) => {
-          if (areaName === 'local' && changes.appearanceSettings) {
-            applyDarkMode(changes.appearanceSettings.newValue && changes.appearanceSettings.newValue.darkMode);
-          }
-        });
-      }
-    })();
-  </script>
+  <script src="help.js"></script>
 </body>
 </html>
