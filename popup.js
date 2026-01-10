@@ -28,6 +28,59 @@ const notifyTTWonderlands = document.getElementById("notifyTTWonderlands");
 const browserApi = typeof browser !== 'undefined' ? browser : chrome;
 const actionApi = browserApi.action || browserApi.browserAction;
 const REWARDS_URL = "https://shift.gearboxsoftware.com/rewards";
+const shiftConfig = globalThis.SHIFT_CONFIG || {};
+const CONFIG_GAMES = Array.isArray(shiftConfig.games) ? shiftConfig.games : [];
+const CONFIG_PLATFORMS = Array.isArray(shiftConfig.platforms) ? shiftConfig.platforms : [];
+const defaultUrlsByGame = CONFIG_GAMES.reduce((acc, game) => {
+    if (game && game.id) {
+        acc[game.id] = Array.isArray(game.defaultUrls) ? game.defaultUrls : [];
+    }
+    return acc;
+}, {});
+const gameLabelsById = CONFIG_GAMES.reduce((acc, game) => {
+    if (game && game.id) {
+        acc[game.id] = game.label || game.id;
+    }
+    return acc;
+}, {});
+
+function setSelectOptions(select, options) {
+    if (!select || options.length === 0) {
+        return;
+    }
+    const currentValue = select.value;
+    select.innerHTML = '';
+    options.forEach((option) => {
+        const value = option.id || option.value || option;
+        const label = option.label || option.name || value;
+        if (!value) {
+            return;
+        }
+        const entry = document.createElement('option');
+        entry.value = value;
+        entry.textContent = label;
+        select.appendChild(entry);
+    });
+    if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
+        select.value = currentValue;
+    }
+}
+
+function hasSelectOption(select, value) {
+    if (!select) {
+        return false;
+    }
+    return Array.from(select.options).some((option) => option.value === value);
+}
+
+function initializeSelectOptions() {
+    if (CONFIG_GAMES.length > 0) {
+        setSelectOptions(gameSelect, CONFIG_GAMES);
+    }
+    if (CONFIG_PLATFORMS.length > 0) {
+        setSelectOptions(platformSelect, CONFIG_PLATFORMS);
+    }
+}
 const redemptionController = globalThis.RedeemRunner?.createRedemptionController
     ? globalThis.RedeemRunner.createRedemptionController()
     : null;
@@ -196,14 +249,7 @@ window.switchTab = function(tabName, event) {
 // Update settings tab with current game info
 async function updateSettingsTab() {
     const game = gameSelect.value;
-    const gameNames = {
-        borderlands4: 'Borderlands 4',
-        tinytina: "Tiny Tina's Wonderlands",
-        borderlands3: 'Borderlands 3',
-        borderlands2: 'Borderlands 2'
-    };
-    
-    settingsGameName.textContent = gameNames[game] || game;
+    settingsGameName.textContent = gameLabelsById[game] || game;
     await loadSettingsUrls(game);
     await loadTimingSettings();
     await loadNotificationSettings();
@@ -474,7 +520,7 @@ if (darkModeToggle) {
 async function loadSettingsUrls(game) {
     const result = await browserApi.storage.local.get(['customUrls']);
     const customUrls = result.customUrls || {};
-    const gameUrls = customUrls[game] || defaultUrls[game] || [];
+    const gameUrls = customUrls[game] || defaultUrlsByGame[game] || [];
     displaySettingsUrls(gameUrls);
 }
 
@@ -512,7 +558,7 @@ async function removeSettingsUrl(index) {
     const customUrls = result.customUrls || {};
     
     if (!customUrls[game]) {
-        customUrls[game] = [...(defaultUrls[game] || [])];
+        customUrls[game] = [...(defaultUrlsByGame[game] || [])];
     }
     
     customUrls[game].splice(index, 1);
@@ -542,7 +588,7 @@ settingsAddUrlButton.addEventListener('click', async () => {
     const customUrls = result.customUrls || {};
     
     if (!customUrls[game]) {
-        customUrls[game] = [...(defaultUrls[game] || [])];
+        customUrls[game] = [...(defaultUrlsByGame[game] || [])];
     }
     
     if (!customUrls[game].includes(newUrl)) {
@@ -749,34 +795,20 @@ async function incrementRetryCount(code, game, platform) {
     }
 }
 
-// Default URLs for different games
-const defaultUrls = {
-    borderlands4: [
-        "https://www.polygon.com/borderlands-4-active-shift-codes-redeem/",
-        "https://mentalmars.com/game-news/borderlands-4-shift-codes/"
-    ],
-    tinytina: [
-        "https://mentalmars.com/game-news/tiny-tinas-wonderlands-shift-codes/",
-        "https://www.rockpapershotgun.com/tiny-tinas-wonderlands-shift-codes"
-    ],
-    borderlands3: [
-    ],
-    borderlands2: [
-    ]
-};
-
 // Load settings from storage
 async function loadSettings() {
     const result = await browserApi.storage.local.get(['selectedGame', 'selectedPlatform', 'customUrls', 'gameNewCodes']);
     
     // Set selected game
-    const selectedGame = result.selectedGame || 'borderlands4';
-    gameSelect.value = selectedGame;
+    const defaultGame = CONFIG_GAMES[0]?.id || 'borderlands4';
+    const selectedGame = result.selectedGame || defaultGame;
+    gameSelect.value = hasSelectOption(gameSelect, selectedGame) ? selectedGame : defaultGame;
 
     // Set selected platform
-    const selectedPlatform = result.selectedPlatform || 'steam';
+    const defaultPlatform = CONFIG_PLATFORMS[0]?.id || 'steam';
+    const selectedPlatform = result.selectedPlatform || defaultPlatform;
     if (platformSelect) {
-        platformSelect.value = selectedPlatform;
+        platformSelect.value = hasSelectOption(platformSelect, selectedPlatform) ? selectedPlatform : defaultPlatform;
     }
     
     // Load URLs for the selected game
@@ -798,7 +830,7 @@ async function loadUrlsForGame(game) {
     const customUrls = result.customUrls || {};
     
     // Get URLs for this game (custom URLs or default ones)
-    const gameUrls = customUrls[game] || defaultUrls[game] || [];
+    const gameUrls = customUrls[game] || defaultUrlsByGame[game] || [];
     
     // No need to display URLs on main tab anymore
     return gameUrls;
@@ -806,6 +838,11 @@ async function loadUrlsForGame(game) {
 
 // Handle game selection change
 gameSelect.addEventListener('change', async () => {
+    if (isRedeeming) {
+        redemptionController?.requestStop();
+        statusElement.textContent = "Stopping redemption due to game change...";
+        await refreshRedemptionTab();
+    }
     const selectedGame = gameSelect.value;
     await browserApi.storage.local.set({ selectedGame });
     await loadUrlsForGame(selectedGame);
@@ -822,6 +859,11 @@ gameSelect.addEventListener('change', async () => {
 
 // Handle platform selection change
 platformSelect.addEventListener('change', async () => {
+    if (isRedeeming) {
+        redemptionController?.requestStop();
+        statusElement.textContent = "Stopping redemption due to platform change...";
+        await refreshRedemptionTab();
+    }
     const selectedPlatform = platformSelect.value;
     await browserApi.storage.local.set({ selectedPlatform });
     
@@ -907,7 +949,7 @@ document.getElementById("fetchCodesButton").addEventListener("click", async () =
         const game = gameSelect.value;
         const result = await browserApi.storage.local.get(['customUrls']);
         const customUrls = result.customUrls || {};
-        const gameUrls = customUrls[game] || defaultUrls[game] || [];
+        const gameUrls = customUrls[game] || defaultUrlsByGame[game] || [];
         
         if (gameUrls.length === 0) {
             statusElement.textContent = "No URLs configured for this game";
@@ -1114,6 +1156,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("Help button not found in DOMContentLoaded!");
     }
 
+    initializeSelectOptions();
     loadSettings().catch(error => {
         console.error('Error loading settings:', error);
     });
@@ -1167,5 +1210,6 @@ if (document.readyState === 'loading') {
         console.debug("All button elements:", document.querySelectorAll("button"));
     }
     
+    initializeSelectOptions();
     loadSettings();
 }

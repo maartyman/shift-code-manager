@@ -1,0 +1,42 @@
+<html data-lt-installed="true"><head>
+  <title>SHiFT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="sh_signed_in">
+<div class="sh_logged_in_container">
+  <div class="main sh_code_redemption_section">
+    <div class="shift-secondary-title"><h2>Code Redemption</h2></div>
+
+      <div class="form-inline">
+        <div class="form-group">
+          <input type="text" id="shift_code_input" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" data-url="/entitlement_offer_codes">
+        </div>
+        <div class="form-group">
+          <button id="shift_code_check" class="sh_button_primary sh_verify_button" disabled="disabled">Check</button>
+        </div>
+      </div>
+    
+    <div class="sh_status_container_code_redemption" style="display: block;">
+      <div id="code_results" data-default-text="Please wait" style="display: block;">
+        <p>Please select the platform and game you'd like to receive your SHiFT rewards.</p>
+
+        <p> To redeem a code that is integrated with multiple games and platforms: Please repeat the process for each game and platform you'd like to receive SHiFT rewards.</p>
+      
+      <h2>Borderlands: Game of the Year Edition</h2>
+          <form class="new_archway_code_redemption" action="/code_redemptions" method="post">
+            <input value="96RBT-ZTC33-T3T33-JT3BT-9BHZJ" type="hidden" name="archway_code_redemption[code]">
+            <input value="steam" type="hidden" name="archway_code_redemption[service]">
+            <input type="submit" value="Redeem for Steam" class="submit_button redeem_button">
+          </form>
+          <br>
+          <form class="new_archway_code_redemption" action="/code_redemptions" method="post">
+            <input value="96RBT-ZTC33-T3T33-JT3BT-9BHZJ" type="hidden" name="archway_code_redemption[code]">
+            <input value="xboxlive" type="hidden" name="archway_code_redemption[service]">
+            <input type="submit" value="Redeem for Xbox Live" class="submit_button redeem_button">
+          </form>
+          <br>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

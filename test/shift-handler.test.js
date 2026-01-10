@@ -44,6 +44,11 @@ function callListener(listener, message) {
 }
 
 function loadHandler() {
+  // Ensure config is loaded globally as it would be in the extension
+  if (!global.SHIFT_CONFIG) {
+    require(path.join('..', 'shift-config.js'));
+  }
+  
   jest.isolateModules(() => {
     require(path.join('..', 'shift-handler.js'));
   });
@@ -326,6 +331,33 @@ describe('shift-handler message listener', () => {
       const psnForms = capturedForms.filter(f => f.platform === 'psn');
       expect(psnForms.some(f => f.form.submit.mock.calls.length > 0)).toBe(false);
       
+      observer.disconnect();
+    });
+
+    test('Works with borderlandsgameoftheyear', async () => {
+      loadSavedDom('borderlandsgameoftheyear');
+      simulateResultUpdate();
+
+      const listener = loadHandler();
+      jest.useFakeTimers();
+      const { capturedForms, observer } = setupFormMocking();
+
+      const redeemPromise = listener({
+        action: 'redeemCode',
+        code: '96RBT-ZTC33-T3T33-JT3BT-9BHZJ',
+        game: 'borderlandsgameoftheyear',
+        platforms: ['steam']
+      });
+
+      await flushAllTimers();
+      const response = await redeemPromise;
+
+      expect(response).toEqual({
+        success: true,
+        state: 'submitted',
+        platforms: [{ platform: 'steam', success: true, attempts: 2 }]
+      });
+
       observer.disconnect();
     });
 

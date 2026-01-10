@@ -10,8 +10,9 @@ The SHIFT Code Manager extension makes redeeming Borderlands SHIFT codes quick a
 - **Borderlands 4**
 - **Tiny Tina's Wonderlands**
 - **Borderlands 3**
-- **Borderlands 2**
 - **Borderlands Pre-Sequel**
+- **Borderlands 2**
+- **Borderlands: Game of the Year Edition**
 
 ### 🔔 Smart Notifications
 - **Automatic Code Detection** - Monitors websites for new SHIFT codes

@@ -307,6 +307,11 @@ function createRedeemRunner(deps) {
 
         onCodeComplete?.(code, result);
 
+        if (!result.success) {
+          const reason = result.error || result.state || "unknown";
+          console.warn(`Redemption failed for ${code} (${platform}/${game}): ${reason}`);
+        }
+
         if (result.state === "stopped") {
           reportStatus("Redemption stopped by user");
           return result;

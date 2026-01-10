@@ -66,14 +66,6 @@ var shiftHandlerOnMessage = async (message) => {
         const game = message.game || 'tinytina';
         const platforms = message.platforms || ['steam']; // Array of platforms to redeem
         
-        // Game name mappings
-        const gameSearchTerms = {
-            borderlands4: ['Borderlands 4'],
-            tinytina: ['Tina', 'Wonderlands'],
-            borderlands3: ['Borderlands 3'],
-            borderlands2: ['Borderlands 2', 'Borderlands: The Pre-Sequel']
-        };
-
         // Platform button selectors
         const platformSelectors = {
             steam: ['steam'],
@@ -154,7 +146,14 @@ var shiftHandlerOnMessage = async (message) => {
 
             // Step 4: Find the game section
             const elements = document.getElementById("code_results").querySelectorAll("h2");
-            const searchTerms = gameSearchTerms[game] || gameSearchTerms['tinytina'];
+            
+            // Resolve game label from config
+            const gameConfigs = (typeof SHIFT_CONFIG !== 'undefined' ? SHIFT_CONFIG.games : []);
+            const targetGame = gameConfigs.find(g => g.id === game) || gameConfigs.find(g => g.id === 'tinytina');
+            
+            // Fallback for tests or missing config - though we expect config to be valid
+            const searchTerms = targetGame ? [targetGame.label] : ['Tiny Tina\'s Wonderlands'];
+
             let gameElement = null;
 
             for (const element of elements) {

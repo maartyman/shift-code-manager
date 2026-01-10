@@ -21,6 +21,7 @@
                 "https://shift.gearboxsoftware.com/*"
             ],
             "js": [
+                "shift-config.js",
                 "shift-handler.js"
             ]
         }

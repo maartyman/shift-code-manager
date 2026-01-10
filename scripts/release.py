@@ -27,6 +27,7 @@ PACKAGE_ENTRIES: Sequence[str] = (
     "manifest.chrome.json",
     "popup.html",
     "help.html",
+    "shift-config.js",
     "popup.js",
     "background.js",
     "shift-handler.js",
