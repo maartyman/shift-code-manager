@@ -92,6 +92,7 @@ function createRedeemRunner(deps) {
       return;
     }
 
+    await injectContentScript(tabId, "shift-config.js");
     await injectContentScript(tabId, "shift-handler.js");
     await sleep(1000);
   };

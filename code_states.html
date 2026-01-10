@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SHIFT Code States</title>
+  <style>
+    body {
+      max-width: 800px;
+      min-width: 600px;
+      width: 80vw;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      margin: 0 auto;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #007cba;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #007cba;
+      margin: 0;
+      font-family: Impact, 'Arial Black', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .add-code-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        border: 1px solid #e9ecef;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .add-code-section input {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .add-code-section button {
+        padding: 8px 16px;
+        background-color: #007cba;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .add-code-section button:hover {
+        background-color: #005a87;
+    }
+    
+    .filters {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        align-items: center;
+    }
+
+    .filter-group {
+        flex: 1;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    th {
+        background-color: #f1f3f4;
+        font-weight: bold;
+        color: #555;
+    }
+
+    tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .state-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+
+    .state-new { background-color: #e3f2fd; color: #0d47a1; }
+    .state-redeemed { background-color: #d4edda; color: #155724; }
+    .state-validated { background-color: #c3e6cb; color: #155724; }
+    .state-expired { background-color: #fff3cd; color: #856404; }
+    .state-invalid { background-color: #f8d7da; color: #721c24; }
+    .state-error { background-color: #f8d7da; color: #721c24; }
+    .state-checking { background-color: #e2e3e5; color: #383d41; }
+
+    .action-button {
+        padding: 4px 8px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+        margin-right: 5px;
+    }
+
+    .btn-retry {
+        background-color: #007cba;
+        color: white;
+    }
+    .btn-retry:hover {
+        background-color: #005a87;
+    }
+
+    .btn-skip {
+        background-color: #dc3545;
+        color: white;
+    }
+    .btn-skip:hover {
+        background-color: #bd2130;
+    }
+
+    code {
+      background-color: #f1f3f4;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-style: italic;
+    }
+
+    /* Dark mode overrides */
+    body.dark-mode {
+      background-color: #121212;
+      color: #e5e5e5;
+    }
+
+    body.dark-mode .container {
+      background-color: #1c1c1c;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    body.dark-mode .header {
+      border-color: #299fe3;
+    }
+
+    body.dark-mode h1 {
+      color: #4ecbff;
+    }
+
+    body.dark-mode .subtitle {
+      color: #b0b0b0;
+    }
+
+    body.dark-mode .filters {
+        background-color: #252525;
+    }
+
+    body.dark-mode .add-code-section {
+        background-color: #252525;
+        border-color: #444;
+    }
+
+    body.dark-mode .add-code-section input {
+        background-color: #333;
+        border-color: #444;
+        color: #e5e5e5;
+    }
+
+    body.dark-mode select {
+        background-color: #333;
+        border-color: #444;
+        color: #e5e5e5;
+    }
+
+    body.dark-mode table th {
+        background-color: #252525;
+        color: #ccc;
+        border-bottom-color: #444;
+    }
+
+    body.dark-mode table td {
+        border-bottom-color: #333;
+        color: #ddd;
+    }
+
+    body.dark-mode tr:hover {
+        background-color: #2a2a2a;
+    }
+
+    body.dark-mode code {
+        background-color: #2a2a2a;
+        color: #e5e5e5;
+    }
+
+    body.dark-mode .state-new { background-color: rgba(13, 71, 161, 0.3); color: #90caf9; }
+    body.dark-mode .state-redeemed { background-color: rgba(21, 87, 36, 0.3); color: #a5d6a7; }
+    body.dark-mode .state-validated { background-color: rgba(21, 87, 36, 0.3); color: #bfdcb6; }
+    body.dark-mode .state-expired { background-color: rgba(133, 100, 4, 0.3); color: #ffe082; }
+    body.dark-mode .state-invalid { background-color: rgba(114, 28, 36, 0.3); color: #ef9a9a; }
+    body.dark-mode .state-error { background-color: rgba(114, 28, 36, 0.3); color: #ffab91; }
+    body.dark-mode .state-checking { background-color: #444; color: #ccc; }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+        <h1>Code Status History</h1>
+        <div class="subtitle">View detailed records of all processed SHIFT codes</div>
+    </div>
+
+    <div class="add-code-section">
+        <input type="text" id="newCodeInput" placeholder="Enter SHIFT code (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)">
+        <button id="addCodeButton">Add Code</button>
+    </div>
+
+    <div class="filters">
+        <div class="filter-group">
+            <label for="gameSelect">Game:</label>
+            <select id="gameSelect"></select>
+        </div>
+        <div class="filter-group">
+            <label for="platformSelect">Platform:</label>
+            <select id="platformSelect"></select>
+        </div>
+    </div>
+
+    <div id="codesTableContainer">
+        <table id="codesTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Retries</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="codesTableBody">
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+  </div>
+
+  <script src="shift-config.js"></script>
+  <script src="code_states.js"></script>
+</body>
+</html>

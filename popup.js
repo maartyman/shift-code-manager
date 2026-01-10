@@ -896,49 +896,21 @@ document.getElementById("resetStorage").addEventListener("click", async () => {
     await updateCodeOverview();
 });
 
-// **View Code States Button**
-document.getElementById("viewStatesButton").addEventListener("click", async () => {
-    const game = gameSelect.value;
-    const platform = platformSelect.value;
-    const codeStates = await getCodeStates();
-    
-    // Filter for current platform+game combination
-    const platformGameStates = Object.entries(codeStates)
-        .filter(([key, _]) => key.startsWith(`${platform}:${game}:`))
-        .map(([key, value]) => ({
-            code: key.split(':')[2], // platform:game:code format
-            platform: key.split(':')[0],
-            game: key.split(':')[1],
-            ...value
-        }));
-
-    if (platformGameStates.length === 0) {
-        statusElement.textContent = `No codes found for ${platform} - ${game}`;
-        return;
-    }
-
-    // Group by state
-    const stateGroups = {};
-    platformGameStates.forEach(codeInfo => {
-        if (!stateGroups[codeInfo.state]) {
-            stateGroups[codeInfo.state] = [];
-        }
-        stateGroups[codeInfo.state].push(codeInfo);
-    });
-
-    let message = `Code states for ${platform} - ${game}:\n`;
-    Object.entries(stateGroups).forEach(([state, codes]) => {
-        message += `${state.toUpperCase()}: ${codes.length} codes\n`;
-        codes.slice(0, 3).forEach(code => {
-            message += `  - ${code.code} (retries: ${code.retryCount})\n`;
-        });
-        if (codes.length > 3) {
-            message += `  - ... and ${codes.length - 3} more\n`;
+// **Open Code States Page**
+const openStatesBtn = document.getElementById("viewCodeStatesButton");
+if (openStatesBtn) {
+    openStatesBtn.addEventListener("click", () => {
+        try {
+            const statesUrl = browserApi.runtime.getURL("code_states.html");
+            browserApi.tabs.create({
+                url: statesUrl,
+                active: true
+            });
+        } catch (error) {
+            console.error("Error opening states page:", error);
         }
     });
-
-    alert(message);
-});
+}
 
 // **Fetch Codes Button**
 document.getElementById("fetchCodesButton").addEventListener("click", async () => {
