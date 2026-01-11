@@ -228,7 +228,6 @@ describe('shift-handler message listener', () => {
       simulateResultUpdate();
 
       const listener = loadHandler();
-      jest.useFakeTimers();
       const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
@@ -273,7 +272,6 @@ describe('shift-handler message listener', () => {
       simulateResultUpdate();
 
       const listener = loadHandler();
-      jest.useFakeTimers();
       const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
@@ -308,7 +306,6 @@ describe('shift-handler message listener', () => {
       simulateResultUpdate();
 
       const listener = loadHandler();
-      jest.useFakeTimers();
       const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
@@ -339,7 +336,6 @@ describe('shift-handler message listener', () => {
       simulateResultUpdate();
 
       const listener = loadHandler();
-      jest.useFakeTimers();
       const { capturedForms, observer } = setupFormMocking();
 
       const redeemPromise = listener({
@@ -366,7 +362,6 @@ describe('shift-handler message listener', () => {
       loadSavedDom('empty_redeem');
 
       const listener = loadHandler();
-      jest.useFakeTimers();
 
       const redeemPromise = listener({
         action: 'redeemCode',
@@ -411,7 +406,6 @@ describe('shift-handler message listener', () => {
       simulateResultUpdate();
 
       const listener = loadHandler();
-      jest.useFakeTimers();
       let { capturedForms, observer } = setupFormMocking();
 
       const firstRedeem = listener({
@@ -474,7 +468,6 @@ describe('shift-handler message listener', () => {
       loadSavedDom('mixed_platform_bug');
       simulateResultUpdate();
       const listener = loadHandler();
-      jest.useFakeTimers();
       
       // We simulate the button NOT disappearing immediately to mimic a potential "hang" or retry loop
       // if the button doesn't go away, it will retry 10 times (10 seconds)
@@ -519,7 +512,6 @@ describe('shift-handler message listener', () => {
     test('waits for new results when previous result was expired', async () => {
       loadSavedDom('expired_code');
       const listener = loadHandler();
-      jest.useFakeTimers();
 
       // Mock the behavior of the site: clicking check eventually updates the results
       const checkButton = document.getElementById('shift_code_check');
@@ -569,16 +561,12 @@ describe('shift-handler message listener', () => {
     test('handles consecutive identical results by clearing previous results', async () => {
       loadSavedDom('expired_code');
       const listener = loadHandler();
-      jest.useFakeTimers();
-
-      const initialHtml = document.getElementById('code_results').innerHTML;
 
       // Mock the behavior: clicking check puts the SAME content back after a delay
       const checkButton = document.getElementById('shift_code_check');
       checkButton.addEventListener('click', () => {
         setTimeout(() => {
-          const results = document.getElementById('code_results');
-          results.innerHTML = initialHtml; // Same "Expired" message
+          loadSavedDom('expired_code');
         }, 2000);
       });
 
@@ -599,10 +587,34 @@ describe('shift-handler message listener', () => {
       expect(response.state).toBe('expired');
     });
 
+    test('handles unexpected error occurred message', async () => {
+      loadSavedDom('empty_redeem');
+      const listener = loadHandler();
+
+      // Mock the behavior of the site: clicking check eventually updates the results
+      const checkButton = document.getElementById('shift_code_check');
+      checkButton.addEventListener('click', () => {
+        setTimeout(() => {
+          // Simulate a successful check result appearing after a delay
+          loadSavedDom('unexpected_error');
+        }, 1000);
+      });
+
+      const redeemPromise = listener({
+        action: 'redeemCode',
+        code: 'NEW-VALID-CODE',
+        game: 'borderlands4',
+        platforms: ['steam']
+      });
+
+      const response = await redeemPromise;
+    
+      expect(response.state).toBe('error');
+    });
+
     test('handles "does not exist" message as invalid state', async () => {
       loadSavedDom('does_not_exist');
       const listener = loadHandler();
-      jest.useFakeTimers();
       simulateResultUpdate();
 
       const redeemPromise = listener({

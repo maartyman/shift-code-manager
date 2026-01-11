@@ -77,6 +77,14 @@ var shiftHandlerOnMessage = async (message) => {
         };
 
         try {
+            // Clear previous results
+            let results = document.getElementById("code_results");
+            let currentHtml = results ? results.innerHTML.trim() : "";
+            if (results && currentHtml) {
+                results.innerHTML = "";
+                results.style.display = 'none';
+            }
+
             // Step 1: Put the code in
             const inputField = document.getElementById("shift_code_input");
             if (!inputField) {
@@ -87,11 +95,6 @@ var shiftHandlerOnMessage = async (message) => {
             inputField.dispatchEvent(new Event('input', { bubbles: true }));
             inputField.dispatchEvent(new Event('change', { bubbles: true }));
             inputField.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-
-            const resultsNode = document.getElementById("code_results");
-            if (resultsNode) {
-                resultsNode.innerHTML = "";
-            }
 
             // Step 2: Press check
             const checkButton = document.getElementById("shift_code_check");
@@ -117,7 +120,7 @@ var shiftHandlerOnMessage = async (message) => {
                     const currentHtml = results ? results.innerHTML.trim() : "";
 
                     if (!results || !currentHtml) {
-                        setTimeout(checkForResult, 500);
+                        setTimeout(checkForResult, 300);
                         return;
                     }
 
@@ -132,8 +135,10 @@ var shiftHandlerOnMessage = async (message) => {
                         resolve({ state: "invalid" });
                     } else if (results.querySelectorAll("h2").length > 0) {
                         resolve({ state: "can_redeem" });
+                    } else if (resultText.includes("error")) {
+                        resolve({ state: "error" });
                     } else {
-                        setTimeout(checkForResult, 1000);
+                        setTimeout(checkForResult, 300);
                     }
                 };
                 checkForResult();
@@ -250,7 +255,7 @@ var shiftHandlerOnMessage = async (message) => {
                     }
 
                     // Wait 1 second between pressing
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
                 redemptionResults.push({ platform, success: true, attempts: clickAttempts });
