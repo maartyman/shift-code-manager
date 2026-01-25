@@ -146,6 +146,10 @@ def _bump_version(version: str, bump: str) -> str:
         parts.append(0)
     if bump == "major":
         parts[0] += 1
+        if len(parts) > 1:
+            parts[1] = 0
+        else:
+            parts.append(0)
     elif bump == "minor":
         parts[1] += 1
     else:
