@@ -608,15 +608,18 @@ document.getElementById("exportSettings").addEventListener("click", async () => 
         // Gather all settings data
         const settingsData = await browserApi.storage.local.get([
             'selectedGame',
-            'customUrls', 
+            'selectedPlatform',
+            'customUrls',
             'timingSettings',
-            'notificationSettings'
+            'notificationSettings',
+            'appearanceSettings',
+            'codeStates'
         ]);
         
         // Create export object with metadata
         const exportData = {
             exportDate: new Date().toISOString(),
-            version: "2.0",
+            version: "2.1",
             extensionName: "Borderlands SHIFT Code Manager",
             settings: settingsData
         };
@@ -693,6 +696,13 @@ document.getElementById("importFileInput").addEventListener("change", async (eve
             gameSelect.value = settingsToImport.selectedGame;
         }
         
+        if (settingsToImport.selectedPlatform) {
+            await browserApi.storage.local.set({ selectedPlatform: settingsToImport.selectedPlatform });
+            if (platformSelect) {
+                platformSelect.value = settingsToImport.selectedPlatform;
+            }
+        }
+
         if (settingsToImport.customUrls) {
             await browserApi.storage.local.set({ customUrls: settingsToImport.customUrls });
         }
@@ -708,6 +718,14 @@ document.getElementById("importFileInput").addEventListener("change", async (eve
                 action: 'updateNotificationSettings',
                 settings: settingsToImport.notificationSettings
             });
+        }
+
+        if (settingsToImport.appearanceSettings) {
+            await browserApi.storage.local.set({ appearanceSettings: settingsToImport.appearanceSettings });
+        }
+
+        if (settingsToImport.codeStates) {
+            await browserApi.storage.local.set({ codeStates: settingsToImport.codeStates });
         }
         
         // Refresh UI
