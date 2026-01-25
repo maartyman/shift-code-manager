@@ -26,7 +26,11 @@ TEST_PACKAGE_SUFFIX = "test"
 PACKAGE_ENTRIES: Sequence[str] = (
     "manifest.chrome.json",
     "popup.html",
+    "redeem-runner.js",
     "help.html",
+    "help.js",
+    "code_states.html",
+    "code_states.js",
     "shift-config.js",
     "popup.js",
     "background.js",
