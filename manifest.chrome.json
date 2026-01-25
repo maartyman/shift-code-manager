@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Borderlands SHIFT Code Manager",
-    "version": "1.4",
+    "version": "1.5",
     "description": "Fetch and redeem SHIFT codes for Borderlands games automatically.",
     "permissions": [
         "storage",

@@ -1,21 +1,39 @@
 # Changelog
 
+## 1.5 - 2026-01-25
+
+### Features
+- _
+
+### Fixes
+- Fix bumping major version in release script (ef580bb)
+- Fix export settings (4a44aba)
+- Fix release script (de5065b)
+
+### Chore
+- _
+
+### Other
+- _
+
 ## 1.4 - 2026-01-11
 
 ### Features
-- Add code manage page (59f475a)
+- _
 
 ### Fixes
 - Fix unexpected error occurred message (286cbb6)
 - Fix platform bug + skip code bug (deb3c9d)
-- Add config and fix a bug with Borderlands GOTY (a6c20fc)
 
 ### Chore
-- Update help page (b5e5b13)
-- Update README.md (c23d65e)
+- Release v1.4 (f135b64)
 
 ### Other
+- Update help page (b5e5b13)
+- Add code manage page (59f475a)
+- Add config and fix a bug with Borderlands GOTY (a6c20fc)
 - Make sure the lockfile is also commited at release (d15e5f2)
+- Update README.md (c23d65e)
 
 ## 1.3 - 2026-01-04
 

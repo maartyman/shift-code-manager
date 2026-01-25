@@ -1,6 +1,6 @@
 {
   "name": "shift-extension",
-  "version": "1.4",
+  "version": "1.5",
   "private": true,
   "scripts": {
     "test": "jest"
